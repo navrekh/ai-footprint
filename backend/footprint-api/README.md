@@ -11,14 +11,20 @@ specification this backend implements.
   persistence, the provider/model/methodology registries, the estimation
   engine, project-scoped API-key authentication and the initial
   stateless `/v1/estimate` / `/v1/batch-estimate` / `/v1/events` API.
-- **Sprint 2** (this revision) turns that into a persistent, multi-tenant
-  platform: organization/project management, a full API-key lifecycle
+- **Sprint 2** turned that into a persistent, multi-tenant platform:
+  organization/project management, a full API-key lifecycle
   (organization-level and project-scoped keys, expiry, revocation),
   durable workload/estimate persistence with provenance, idempotent event
   ingestion, and paginated workload/estimate history APIs.
+- **Sprint 3** (this revision) adds the developer platform and usage
+  intelligence layer: an `Application` entity between Project and
+  AIWorkload, application-aware event submission, and six usage
+  intelligence endpoints (summary, and breakdowns by provider/model/
+  activity/application, plus a time series) - all derived from persisted
+  data via PostgreSQL aggregation, with no separate usage ledger.
 
-No frontend, mobile app or browser extension is in scope for either
-sprint.
+No frontend, mobile app or browser extension is in scope for any sprint
+so far.
 
 ## Architecture
 
@@ -38,116 +44,129 @@ Module boundaries follow `docs/ARCHITECTURE.md` section 5:
 
 - `app/api/` - HTTP routes and dependency wiring only (thin controllers).
 - `app/core/` - configuration, security, structured logging, error
-  contract, slug generation, cursor pagination.
+  contract, slug generation, cursor pagination, shared DB-error
+  classification.
 - `app/db/` - async engine/session and the shared declarative base.
 - `app/models/` - SQLAlchemy persistence models.
 - `app/schemas/` - Pydantic request/response contracts.
 - `app/services/` - business services (auth, organizations, projects,
-  API keys, workloads, estimates, batch, tenant-context resolution).
+  applications, API keys, workloads, estimates, batch, usage
+  intelligence, tenant-context resolution).
 - `app/methodology/` - the estimation engine: validator, resolvers,
   per-metric estimators, uncertainty aggregation, confidence, and the
-  pipeline that sequences them. Independent of the persistence layer -
-  it takes a workload-shaped input and returns an `EstimateResult`; it
-  has no knowledge of organizations, projects or HTTP.
+  pipeline that sequences them. Independent of the persistence layer and
+  of the usage/application layer - it takes a workload-shaped input and
+  returns an `EstimateResult`; it has no knowledge of organizations,
+  projects, applications or HTTP.
 - `app/providers/` - the provider adapter abstraction (structural in
   this sprint; adapters do not call any provider API yet).
 
-### Multi-tenancy model
+### Domain hierarchy
 
 ```text
 Organization (tenant boundary)
    |
-   +-- Project(s)
+   +-- Project (operational boundary, API-key scope, usage aggregation)
+         |
+         +-- Application (a named AI product/service/environment)
+         |     |
+         |     +-- AIWorkload(s) -> Estimate
          |
          +-- API Key(s) - project-scoped
-         +-- AIWorkload(s) -> Estimate
+         +-- AIWorkload(s) without an application -> Estimate
    +-- API Key(s) - organization-level
 ```
 
 An API key belongs to exactly one **organization** and, optionally, to
-one **project** within it:
+one **project** within it (unchanged from Sprint 2 - Sprint 3 does not
+introduce application-scoped keys, per the PRD/FRD's explicit deferral):
 
-- A **project-scoped key** (the Sprint 1 model) authenticates requests
-  against that one project - it can submit events, and its reads
-  (workload/estimate history) are hard-limited to that project.
-- An **organization-level key** (`project_id` is `NULL`) exists to
-  bootstrap and manage an organization's projects and keys before any
-  project-scoped key exists for a given project, and to read across all
-  of an organization's projects. It must supply an explicit `project_id`
-  on write endpoints (`POST /v1/events`).
+- A **project-scoped key** authenticates requests against that one
+  project - it can submit events, manage that project's applications,
+  and its reads (workload/estimate/application/usage) are hard-limited
+  to that project.
+- An **organization-level key** (`project_id` is `NULL`) bootstraps and
+  manages projects/applications/keys before any project-scoped key
+  exists, and reads/aggregates across all of an organization's projects.
+  It must supply an explicit `project_id` on write endpoints.
+
+An `Application` belongs to exactly one project. A workload may
+optionally reference an application, but only one that belongs to the
+same project the workload is being persisted under - validated on every
+submission, never inferred or fabricated.
 
 Every organization-scoped query is filtered by `organization_id` derived
-from the authenticated API key - never from a client-supplied
-`organization_id`/`project_id` in the request body alone. Cross-tenant
-lookups return `404 NOT_FOUND` rather than `403 FORBIDDEN`, so a caller
-can never distinguish "belongs to another organization" from "does not
-exist."
+from the authenticated API key - never from a client-supplied value.
+Cross-tenant lookups return `404 NOT_FOUND` rather than `403 FORBIDDEN`,
+so a caller can never distinguish "belongs to another organization" from
+"does not exist." Single-record reads (workload/estimate/application by
+id) enforce the same project-scope rule as their collection endpoints.
 
 ### Architecture notes / design decisions
 
-**Stateless `/v1/estimate` and `/v1/batch-estimate` vs. persisted
-`/v1/events` (Sprint 1, preserved in Sprint 2).** The FRD lists
-`Estimate.workload_id` as required, but `/v1/estimate` and
-`/v1/batch-estimate` are specified as *calculate* endpoints while only
-`/v1/events` is specified as *persist*. Resolved by keeping
-`/v1/estimate` and `/v1/batch-estimate` fully stateless (no DB writes,
-ephemeral generated IDs); `/v1/events` is the only endpoint that
-persists `AIWorkload` + `Estimate`. Sprint 2 did not change this - it was
-an explicit instruction not to silently turn the calculate-only endpoint
-into a persistence one.
+**Stateless `/v1/estimate` and `/v1/batch-estimate` (Sprint 1, preserved
+through every later sprint).** These remain calculate-only with no DB
+writes; only `/v1/events` persists `AIWorkload` + `Estimate`. Sprint 3
+did not touch either stateless endpoint.
 
-**Organization creation is the one unauthenticated endpoint.**
-`POST /v1/organizations` has no prior auth context to bind to (it is the
-signup step), so it bootstraps a default project and the organization's
-first API key in the same transaction and returns the raw key once. This
-is the only way to get started; there is no username/password/session
-system, matching the PRD's API-key-centric developer flow without adding
-an out-of-scope auth mechanism (OAuth, SSO).
+**Organization creation is the one unauthenticated endpoint** (Sprint
+2). `POST /v1/organizations` bootstraps a default project and first API
+key in the same transaction.
 
-**No RBAC beyond the organization tenant boundary.** Any valid,
-non-revoked, non-expired API key belonging to organization X (whether
-organization-level or project-scoped) can manage organization X's
-projects and API keys. The only place a key's own project scope matters
-is which project a write targets (`POST /v1/events`) and which
-project(s) a read can see. This is deliberately not a permissions/roles
-system - the sprint brief explicitly excludes "RBAC beyond the minimum
-tenant authorization needed."
+**No RBAC beyond the organization tenant boundary** (Sprint 2, still
+true in Sprint 3). Any valid key in organization X can manage X's
+projects, applications and keys. A key's own project scope only matters
+for which project a write targets and which project(s)/application(s) a
+read can see.
 
-**Estimate provenance is denormalized.** `Estimate.provider` / `.model` /
-`.model_version` are copied from the resolved registry entries at
-calculation time, rather than requiring a join through `workload_id`, so
-a persisted estimate is self-contained and independent of any future
-change to how `AIWorkload` stores these fields (historical immutability).
-Deeper snapshotting (embedding the exact `MethodologyFactor` row used) was
-considered and deliberately not implemented - `methodology_version` +
-`provider` + `model` + `activity_type` are sufficient to look up the
-applicable factor set, since methodology factors are themselves
-versioned and immutable (never overwritten, only superseded with a new
-`effective_from`). Full factor-value snapshotting is left for a future
-sprint if reproducibility requirements tighten further.
+**Application/project mismatch has its own error code, distinct from
+"does not exist."** `APPLICATION_NOT_FOUND` is opaque (the application
+does not exist anywhere the caller's organization can see);
+`APPLICATION_PROJECT_MISMATCH` means the application exists in the
+caller's own organization but a different project - a legitimate,
+specific validation error rather than a tenant leak, since the caller's
+organization already has visibility into it. This mirrors the existing
+`ForbiddenError` precedent for a project-scoped key's own project
+mismatch in `tenant_context.resolve_target_project_id`.
 
-**Idempotency is a simple, project-scoped key match.** `EventCreateRequest.idempotency_key`
-is optional; when supplied, `(project_id, idempotency_key)` is unique
-(a database constraint, not just an application check). Resubmitting the
-same key returns the original `workload_id`/`estimate_id` with
-`idempotent_replay: true` - no request-body comparison, no queue, no
-distributed locking, matching "a simple deterministic idempotency
-mechanism," not an event-processing platform.
+**`application_id` is nullable and never backfilled or required.**
+Existing Sprint 1/2 workloads have no application and remain fully
+valid; new workloads may omit it too. There is no migration path that
+assigns historical workloads to a fabricated application.
 
-**`EventCreateResponse` is additive, not breaking.** Sprint 1 returned
-`{"event_id", "estimate_id"}`. Sprint 2 adds `workload_id` (identical to
-`event_id`, kept for compatibility), `status`
-(`"measured" | "partial" | "insufficient_data"`, derived from the three
-per-metric statuses, never stored) and `idempotent_replay`. Existing
-clients reading only `event_id`/`estimate_id` are unaffected.
+**Usage intelligence has no ledger.** `GET /v1/usage/*` compute
+everything from `ai_workloads` JOIN `estimates` at query time via
+PostgreSQL aggregate functions with `FILTER (WHERE ...)` clauses - the
+same additive min/max-sum, per-metric-independent math as
+`UncertaintyEngine.aggregate()` and `BatchService`, just pushed down to
+the database instead of run over an in-memory list. The
+ok/partial/insufficient_data decision itself
+(`determine_metric_status`) was extracted out of `UncertaintyEngine` so
+both call sites share the exact same rule rather than reimplementing it.
+No new table, materialized view, Redis or warehouse was introduced.
 
-**Pagination is cursor-based, never offset.** `GET /v1/workloads` orders
-by `created_at DESC, id DESC` (a stable order even when timestamps tie)
-and pages via an opaque base64 cursor encoding the last row's
-`(created_at, id)` - correct even as new workloads are inserted between
-page fetches, unlike offset pagination. `GET /v1/projects` and
-`GET /v1/api-keys` use simple limit/offset instead, since those lists are
-low-cardinality, admin-style listings rather than growing event streams.
+**`by-application` excludes unassigned workloads** rather than grouping
+them into a synthetic "none" bucket - a deliberate, minimal scope choice
+consistent with the sprint's explicit exclusion of application-scoped
+billing/analytics features.
+
+**Usage date ranges default to the last 30 days when omitted**, and time
+series requests are rejected with `INVALID_DATE_RANGE` if the requested
+range/granularity combination would produce more than 400 buckets -
+bounding an otherwise-unbounded query without needing a warehouse or
+pagination on the time series endpoint itself.
+
+**A project-scoped key's `project`/`application` usage filters are
+hard-scoped, not rejected.** Reusing the same
+`resolve_optional_project_filter` helper the workload-history list
+endpoint already used in Sprint 2: a project-scoped key's usage queries
+always run against its own project regardless of what filter value it
+supplies, and an organization-level key's filter is constrained by the
+mandatory `organization_id` condition either way - so a foreign
+project/application id can never leak data, whether or not it is
+explicitly rejected. `GET /v1/usage/*` follows the same convention as
+`GET /v1/workloads` rather than inventing stricter validation
+inconsistent with the rest of the API.
 
 ## Database
 
@@ -156,29 +175,39 @@ migrations (sync, `psycopg` driver, derived from the same `DATABASE_URL`).
 `Base.metadata.create_all()` is never used as a schema-management
 mechanism - all schema changes go through Alembic revisions.
 
-Tables: `organizations`, `projects`, `api_keys`, `providers`, `models`,
-`methodologies`, `methodology_factors`, `ai_workloads`, `estimates`.
+Tables: `organizations`, `projects`, `applications`, `api_keys`,
+`providers`, `models`, `methodologies`, `methodology_factors`,
+`ai_workloads`, `estimates`.
 
-Sprint 2 migration (`ea0ba84cd47c_sprint_2_persistence_lifecycle`) adds:
+Sprint 3 migration (`9fdd13a3da4f_sprint_3_application_and_usage`) adds:
 
-- `organizations`: `slug` (unique), `status`
-- `projects`: `slug` (unique per organization), `description`, `status`
-- `api_keys`: `organization_id` (required FK), `expires_at`; `project_id`
-  becomes nullable
-- `ai_workloads`: `model_version`, `input_characters`, `output_characters`,
-  `duration_ms`, `idempotency_key` (unique per project); indexes on
-  `provider`, `model`, `activity_type`, `created_at`, and a composite
-  `(project_id, created_at)` for the history query's ordering
-- `estimates`: `provider`, `model`, `model_version` (denormalized
-  provenance); index on `created_at`
+- `applications`: `id`, `project_id` (FK, cascade delete), `name`,
+  `slug` (unique per project via `uq_application_project_slug`),
+  `description`, `status`, `environment`, timestamps.
+- `ai_workloads.application_id`: nullable FK to `applications.id`
+  (`ON DELETE SET NULL` - deactivating or, hypothetically, removing an
+  application never deletes historical workloads/estimates), indexed
+  for the `by-application` usage query.
 
-Pre-existing rows are backfilled during the migration (organization/
-project `slug` defaults to `id`; `api_keys.organization_id` is backfilled
-from the linked project) rather than requiring an empty database.
+No backfill was needed (the new table starts empty; the new column is
+nullable from the start), unlike Sprint 2's migration which had to
+backfill pre-existing rows.
 
 `methodology_factors.provider` / `.model` remain plain nullable strings,
 not foreign keys - the data contract (`data/methodology/README.md`)
 explicitly allows generic factors with no provider/model.
+
+### Indexes for usage queries
+
+Usage aggregation relies on indexes already added in Sprint 2
+(`ai_workloads.organization_id`, `.project_id`, `.provider`, `.model`,
+`.activity_type`, `.created_at`, and the composite
+`(project_id, created_at)`), plus Sprint 3's new
+`ai_workloads.application_id` index. No additional indexes were found to
+be necessary for Sprint 3's query patterns; `EXPLAIN` was not required
+since every usage query filters on already-indexed columns and
+aggregates via `FILTER (WHERE ...)` rather than post-processing in
+Python.
 
 ## No fabricated environmental factors
 
@@ -192,12 +221,15 @@ factor values that exist anywhere in this repository are:
   `evidence_level=6` / `confidence=low`, and
 - An **opt-in** `--with-test-only-demo-data` flag on `scripts/seed.py`
   that seeds an equally clearly labeled `TEST_ONLY-0.1` methodology/model/
-  factor set, purely so a developer can exercise `/v1/estimate` locally
-  end-to-end. It must never be run against a shared, staging or
-  production database.
+  factor set, purely so a developer can exercise `/v1/estimate` and the
+  usage endpoints locally end-to-end. It must never be run against a
+  shared, staging or production database.
 
 Adding a real, sourced methodology factor is a reviewed data-entry
-process (see `data/methodology/README.md`), not a code change.
+process (see `data/methodology/README.md`), not a code change. Usage
+intelligence inherits this guarantee automatically: it only aggregates
+factors already validated by the estimation pipeline, and workloads with
+no defensible factor are reported as `insufficient_data`, never as zero.
 
 ## Local setup
 
@@ -262,7 +294,9 @@ alembic revision --autogenerate -m "description"   # create a new migration
 > organization-level (`project_id IS NULL`) API key exists, since
 > `project_id` cannot be restored to `NOT NULL` while `NULL` rows are
 > present - an inherent, intentional limitation of downgrading past the
-> point where `NULL` became meaningful, not a bug.
+> point where `NULL` became meaningful, not a bug. The Sprint 3 migration
+> has no such constraint (its new column and table are both safe to add
+> and remove regardless of existing data).
 
 ## Running tests
 
@@ -296,18 +330,32 @@ Once running: `GET /docs` (Swagger UI) and `GET /openapi.json`.
 | GET | `/v1/projects` | any key | limit/offset paginated |
 | GET | `/v1/projects/{id}` | any key | |
 | PATCH | `/v1/projects/{id}` | any key | |
+| POST | `/v1/applications` | any key | omit `project_id` for a project-scoped key |
+| GET | `/v1/applications` | any key | filterable by `project`, limit/offset paginated |
+| GET | `/v1/applications/{id}` | any key | |
+| PATCH | `/v1/applications/{id}` | any key | status/environment/description/name only |
 | POST | `/v1/api-keys` | any key | omit `project_id` for an org-level key |
 | GET | `/v1/api-keys` | any key | limit/offset paginated; never returns the raw key/hash |
 | POST | `/v1/api-keys/{id}/revoke` | any key | |
 | POST | `/v1/estimate` | any key | stateless, not persisted |
-| POST | `/v1/events` | any key | persists `AIWorkload` + `Estimate`; supports `idempotency_key` |
+| POST | `/v1/events` | any key | persists `AIWorkload` + `Estimate`; supports `idempotency_key`, optional `application_id` |
 | POST | `/v1/batch-estimate` | any key | stateless, not persisted |
 | GET | `/v1/workloads` | any key | cursor-paginated history, filterable |
 | GET | `/v1/workloads/{id}` | any key | |
 | GET | `/v1/estimates/{id}` | any key | |
+| GET | `/v1/usage/summary` | any key | totals, coverage, energy/water/carbon ranges for a period |
+| GET | `/v1/usage/by-provider` | any key | limit/offset paginated |
+| GET | `/v1/usage/by-model` | any key | grouped by provider/model/model_version; limit/offset paginated |
+| GET | `/v1/usage/by-activity` | any key | limit/offset paginated |
+| GET | `/v1/usage/by-application` | any key | excludes unassigned workloads; limit/offset paginated |
+| GET | `/v1/usage/timeseries` | any key | `granularity=day\|week\|month`; bounded to 400 buckets |
 | GET | `/v1/providers` | none | |
 | GET | `/v1/models` | none | |
 | GET | `/v1/methodology` | none | |
+
+All `/v1/usage/*` endpoints accept `from`, `to`, `project`, `application`,
+`provider`, `model` and `activity_type` query filters (composable), and
+default to the trailing 30 days when `from`/`to` are omitted.
 
 ## Methodology principles
 
@@ -317,13 +365,17 @@ Once running: `GET /docs` (Swagger UI) and `GET /openapi.json`.
 - When no approved factor exists for a workload, the API returns an
   explicit `insufficient_data` status per metric rather than inventing a
   value; `partial` communicates "some but not all metrics measured"
-  without ever letting a partial result look complete.
+  without ever letting a partial result look complete - true whether
+  aggregating a single event, a batch, or a usage query across
+  thousands of workloads.
 - Methodology versions are immutable once published; historical estimates
-  keep the methodology version - and now also the provider/model/model
-  version - used at calculation time (`Estimate` denormalizes these).
-- Aggregation (batches, future coding-agent sessions) sums minimums and
-  sums maximums independently - it never averages a range into false
-  precision.
+  keep the methodology version - and the provider/model/model version -
+  used at calculation time (`Estimate` denormalizes these).
+- Aggregation (batches, usage intelligence, future coding-agent sessions)
+  sums minimums and sums maximums independently - it never averages a
+  range into false precision, and measurement coverage
+  (`measured`/`partial`/`insufficient_data` workload counts and
+  `coverage_percent`) is always reported explicitly alongside the range.
 
 See `docs/METHODOLOGY.md` for the full accounting-boundary, evidence-level
 and confidence model.
@@ -342,6 +394,12 @@ and confidence model.
   organization_id derived from the authenticated key, never a
   client-supplied one: cross-tenant reads/writes return `404` (existence
   is never confirmed or denied differently for another tenant's data).
+  Single-record reads (workload/estimate/application by id) enforce the
+  same project scope as their collection endpoints.
+- Application ownership is validated on every workload submission that
+  references one: it must belong to the target project, with
+  `APPLICATION_NOT_FOUND` (opaque) vs. `APPLICATION_PROJECT_MISMATCH`
+  (explicit, same-organization) distinguishing the two failure modes.
 - Errors follow a single consistent contract
   (`{"error": {"code", "message", "request_id"}}`) and never leak stack
   traces; every request gets a `request_id` (also returned as the
@@ -358,24 +416,26 @@ and confidence model.
   see "No fabricated environmental factors" above).
 - Provider adapters (`app/providers/`) are structural only; they do not
   call any provider API yet.
-- No web frontend, mobile app or browser extension.
+- No web frontend, mobile app, or browser extension.
 - No rate limiting implementation yet (error code and abstraction point
-  exist; no limiter is wired up - explicitly out of scope for Sprint 2).
+  exist; no limiter is wired up - explicitly out of scope).
 - No coding-agent session aggregation endpoint yet (the
   `parent_workload_id` relationship and `UncertaintyEngine.aggregate()`
   primitive are in place for a future sprint).
 - No full methodology-factor snapshotting on `Estimate` - provenance is
   provider/model/model_version/methodology_version, not a copy of the
-  exact factor row (see "Architecture notes" for why this is sufficient
-  for Sprint 2).
+  exact factor row.
 - Idempotency is a simple key-match replay, not a request-body-hash
-  comparison - resubmitting the same `idempotency_key` with a
-  *different* payload silently returns the original result rather than
-  erroring, matching "a simple deterministic idempotency mechanism" and
-  not a general-purpose request-fingerprinting system.
-- No RBAC beyond the organization tenant boundary (any valid key in an
-  organization can manage that organization's projects/keys) - explicitly
-  out of scope per the sprint brief.
+  comparison.
+- No RBAC beyond the organization tenant boundary, and no
+  application-scoped API keys (both explicitly deferred by the PRD/FRD).
+- `by-application` usage excludes workloads with no application rather
+  than reporting an "unassigned" bucket.
+- Usage breakdown endpoints use limit/offset pagination (consistent with
+  `/v1/projects` and `/v1/api-keys`); `/v1/usage/timeseries` is instead
+  bounded by a maximum bucket count (400) rather than paginated, since a
+  time series is naturally ordered and callers control its size via
+  `granularity` and date range.
 - Docker Compose stack was authored and reviewed but could not be built
   in this sandbox (Docker Desktop was incompatible with the host macOS
   version); verify on a compatible machine or in CI before depending on it.
