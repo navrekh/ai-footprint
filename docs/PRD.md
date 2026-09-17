@@ -1,16 +1,16 @@
 # AI FOOTPRINT
 ## Product Requirements Document (PRD)
-### Version 0.1 — Foundation / MVP
+### Version 0.2 — Foundation + Developer Platform
 
 **Product:** AI Footprint  
 **Working tagline:** Know the hidden resource impact of AI.  
-**Status:** Approved foundation draft  
+**Status:** Approved — Sprint 3 baseline  
 
 ## 1. Executive Summary
 
-AI Footprint is a technology platform designed to make the estimated physical resource impact of artificial intelligence understandable to users and measurable for developers and organizations.
+AI Footprint is a provider-neutral technology platform designed to make the estimated physical resource impact of artificial intelligence understandable to users and measurable for developers and organizations.
 
-AI usage spans conversational AI, image generation, video generation, audio, coding assistants, code review, AI agents, RAG, embeddings and other workloads. Users generally see the output of AI but not the infrastructure and resource implications associated with producing that output.
+AI usage spans conversational AI, image generation, video generation, audio, coding assistants, code review, AI agents, RAG, embeddings and other workloads. Users generally see the output of AI but not the infrastructure and resource implications associated with producing it.
 
 AI Footprint exposes estimated:
 
@@ -21,9 +21,30 @@ AI Footprint exposes estimated:
 
 The platform shall not claim to measure exact physical resource consumption of an individual request unless authoritative measurement data is available. Estimates shall be presented with ranges, confidence, methodology version, assumptions and source provenance.
 
+The platform is designed around an **AIWorkload** abstraction and a hierarchical developer model:
+
+```text
+Organization
+  └── Project
+       └── Application
+            ├── API Keys
+            └── AI Workloads
+                 └── Estimates
+```
+
+An Organization is the tenant/security boundary. A Project is the operational and future billing boundary. An Application represents a specific AI product, service, environment or client workload within a Project.
+
 ## 2. Product Vision
 
 Make the resource impact of AI visible, understandable and measurable without requiring users to understand data-center infrastructure.
+
+For developers and organizations, AI Footprint should become a resource-intelligence layer that answers:
+
+- How much AI workload are we running?
+- What estimated energy, water and carbon impact does that workload represent?
+- Which providers, models, activities and applications contribute to that impact?
+- How much of our workload is actually measurable with available methodology data?
+- How confident should we be in the reported estimates?
 
 ## 3. Target Users
 
@@ -37,7 +58,7 @@ Developers building AI-powered applications who want to expose resource impact t
 Organizations using AI coding assistants, coding agents and automated AI workflows.
 
 ### Enterprise
-Organizations wanting aggregate AI resource intelligence.
+Organizations wanting aggregate AI resource intelligence across applications and projects.
 
 ### AI Platforms / Providers
 AI companies wanting to provide resource transparency within their products.
@@ -52,14 +73,46 @@ AI companies wanting to provide resource transparency within their products.
 6. Human understandable
 7. Developer friendly
 8. Methodology versioning
+9. Reproducibility
+10. Measurement coverage must be explicit
 
 ## 5. Core Product Abstraction
 
 The fundamental object is **AIWorkload**, not AIPrompt.
 
-This supports multimodal and agentic workloads.
+This supports multimodal, infrastructure and agentic workloads without requiring the platform to store private AI content.
 
-## 6. AI Workload Taxonomy
+## 6. Domain Hierarchy
+
+### Organization
+Top-level tenant and security boundary.
+
+### Project
+Operational boundary within an organization. Projects are the primary boundary for API-key scope, usage aggregation and future billing.
+
+### Application
+A specific AI product, service, environment or workload source within a project. Examples include Customer Support AI, Internal Copilot and Coding Agent.
+
+An Application has:
+
+- name
+- slug
+- description
+- status
+- optional environment: development, staging or production
+- project ownership
+- created/updated timestamps
+
+### API Key
+Authentication credential used to access protected APIs. API keys remain organization-level or project-scoped in the initial platform; application-scoped keys are deferred until a concrete security requirement exists.
+
+### AIWorkload
+The measurable unit of AI activity. A workload may represent an inference, generation, embedding operation, tool-driven step, media operation, coding task or aggregate session.
+
+### Estimate
+The resource-impact result associated with a workload, including range, confidence, methodology and provenance.
+
+## 7. AI Workload Taxonomy
 
 ### Conversational AI
 - Text generation
@@ -109,11 +162,11 @@ This supports multimodal and agentic workloads.
 - Extraction
 - Fine-tuning
 
-## 7. MVP Scope
+## 8. MVP and Current Platform Scope
 
-The MVP establishes the measurement infrastructure rather than solving every integration immediately.
+The initial MVP establishes the measurement infrastructure. Sprint 1 and Sprint 2 establish the backend foundation, persistence and lifecycle management. Sprint 3 extends this into a developer platform and usage-intelligence layer.
 
-### Backend
+### Foundation
 - Footprint Engine
 - Provider registry
 - Model registry
@@ -121,9 +174,23 @@ The MVP establishes the measurement infrastructure rather than solving every int
 - Estimation API
 - Methodology API
 - Authentication
-- API keys
-- Usage tracking
-- Audit logging
+- API key lifecycle
+- Workload and estimate persistence
+- Idempotent event ingestion
+- Audit-ready request metadata
+
+### Developer Platform
+- Organization management
+- Project management
+- Application management
+- Application-aware workloads
+- Usage summaries
+- Usage breakdown by provider
+- Usage breakdown by model
+- Usage breakdown by activity
+- Usage breakdown by application
+- Usage time series
+- Measurement coverage reporting
 
 ### Initial Providers
 - OpenAI
@@ -135,6 +202,7 @@ The MVP establishes the measurement infrastructure rather than solving every int
 - Image
 - Video
 - Coding
+- Infrastructure and agentic workload taxonomy as supported by methodology data
 
 ### Metrics
 - Energy
@@ -144,48 +212,48 @@ The MVP establishes the measurement infrastructure rather than solving every int
 ### Estimate metadata
 - Range
 - Confidence
+- Evidence level
 - Methodology version
 - Assumptions
 - Source references
 
-### Developer Experience
-- REST API
-- OpenAPI specification
-- JavaScript/TypeScript SDK
-- Python SDK
-- Developer dashboard
+## 9. Usage Intelligence Requirements
 
-### Consumer foundation
-- Account
-- Activity history
-- Dashboard
-- Manual activity entry
-- Future share/import workflow
+Usage intelligence must be derived from persisted AIWorkload and Estimate records rather than maintaining a separate synchronized usage ledger in the initial implementation.
 
-## 8. Out of MVP
+The platform shall support:
 
-The following do not block MVP:
+- total workloads
+- measurable workloads
+- partial/insufficient-data workloads
+- energy ranges
+- water ranges
+- carbon ranges
+- measurement coverage percentage
+- breakdowns by provider, model, activity and application
+- daily, weekly and monthly time series
+- custom date-range aggregation
 
-- iOS deep integration
-- Android system-wide monitoring
-- every LLM integration
-- automatic interception of private AI conversations
-- enterprise gateway
-- GitHub App
-- browser extension
-- automated billing
-- ESG certification
-- real-time data-center telemetry
+### Coverage semantics
 
-## 9. User Experience
+Coverage must be explicit. For example, if 7,500 of 10,000 workloads have defensible methodology coverage, the platform reports 75% measurement coverage and must not present the aggregate as if all 10,000 workloads were fully measured.
+
+Aggregations must preserve range semantics. Minimum and maximum values shall be aggregated without collapsing uncertainty into a false point estimate.
+
+If an aggregate contains unsupported or insufficient-data workloads, the aggregate status shall communicate `partial` or `insufficient_data` as appropriate.
+
+## 10. User Experience
 
 ### Consumer
 Install/open → account → record activity → estimate → understand → history → share.
 
 ### Developer
-Sign up → project → API key → documentation → submit AI workload → receive estimate → dashboard.
+Sign up → organization → project → application → API key → documentation → submit AI workload → receive estimate → usage dashboard.
 
-## 10. Business Model
+### Enterprise
+Organization → projects → applications → API integrations → aggregate usage → measurement coverage → analytics/reporting.
+
+## 11. Business Model
 
 Primary model: **free awareness → paid infrastructure**.
 
@@ -198,16 +266,30 @@ Usage-based plans with free, startup, growth and enterprise tiers.
 ### Enterprise
 Subscription based on workload volume, applications, users, analytics and integrations.
 
-## 11. Privacy
+Billing implementation is not part of Sprint 3.
+
+## 12. Privacy
 
 Prefer metadata over content. Core measurement should not require storing prompts, generated responses, private images or source code.
 
-## 12. Success Metrics
+Application, provider, model, workload metadata and measurement results should be stored only to the extent required for estimation, analytics, security, reproducibility and future billing.
+
+## 13. Security and Tenant Isolation
+
+- Organization is the tenant boundary.
+- Project-scoped credentials may access only their project.
+- Organization-level credentials may operate across projects according to endpoint rules.
+- Application access must be constrained to the owning project and organization.
+- Cross-tenant resources must not be disclosed.
+- Single-record and collection endpoints must enforce the same project/application scope semantics.
+
+## 14. Success Metrics
 
 ### Product
 - Registered users
 - Active users
 - AI workloads measured
+- Measurement coverage
 - Repeat usage
 - Weekly retention
 - Shared reports
@@ -215,9 +297,11 @@ Prefer metadata over content. Core measurement should not require storing prompt
 ### Developer
 - API signups
 - API keys created
+- Active projects
 - Active applications
 - Monthly workloads
 - SDK adoption
+- Usage dashboard engagement
 
 ### Business
 - Free-to-paid conversion
@@ -225,7 +309,7 @@ Prefer metadata over content. Core measurement should not require storing prompt
 - API revenue
 - Enterprise customers
 
-## 13. Roadmap
+## 15. Roadmap
 
 ### Phase 0 — Foundation
 PRD, FRD, architecture, methodology, data model, API specification.
@@ -234,7 +318,7 @@ PRD, FRD, architecture, methodology, data model, API specification.
 Calculation engine, provider/model registry, methodology registry, tests.
 
 ### Phase 2 — Developer Platform
-Developer accounts, projects, API keys, dashboard, docs, SDKs.
+Developer accounts, projects, API keys, application management, usage intelligence, dashboard, docs and SDKs.
 
 ### Phase 3 — Consumer Web/Mobile
 Mobile UX, application, activity history, dashboard, shareable footprint.
@@ -243,12 +327,80 @@ Mobile UX, application, activity history, dashboard, shareable footprint.
 Browser extension, GitHub, coding tools, AI application SDK.
 
 ### Phase 5 — Enterprise
-Organization management, analytics, reporting, SSO, RBAC, gateway.
+Advanced organization management, analytics, reporting, SSO, RBAC and gateway.
 
 ### Phase 6 — AI Resource Intelligence
 Cross-provider observability, agent workloads, benchmarking and optimization insights.
 
-## 14. MVP Release Criteria
+## 16. Sprint 3 — Developer Platform & Usage Intelligence
+
+Sprint 3 shall deliver the backend foundation for developer-facing usage intelligence.
+
+### In scope
+1. Application entity and database migration
+2. Application CRUD
+3. Application/project/organization isolation
+4. `application_id` association on AI workloads
+5. Validation that an application belongs to the workload's project
+6. Usage summary API
+7. Usage by provider API
+8. Usage by model API
+9. Usage by activity API
+10. Usage by application API
+11. Usage time-series API
+12. Measurement coverage metrics
+13. Range-aware aggregation
+14. Filtering by project/application/date range where applicable
+15. Pagination or bounded result sets for high-cardinality breakdowns
+16. Tests for authorization, aggregation and incomplete-data semantics
+17. OpenAPI documentation
+
+### Suggested endpoints
+
+- `POST /v1/applications`
+- `GET /v1/applications`
+- `GET /v1/applications/{application_id}`
+- `PATCH /v1/applications/{application_id}`
+- `GET /v1/usage/summary`
+- `GET /v1/usage/by-provider`
+- `GET /v1/usage/by-model`
+- `GET /v1/usage/by-activity`
+- `GET /v1/usage/by-application`
+- `GET /v1/usage/timeseries`
+
+Usage APIs should accept explicit date ranges and use PostgreSQL aggregation initially.
+
+### Out of scope for Sprint 3
+
+- Frontend/dashboard UI
+- SDK implementation
+- Live provider integrations
+- Billing and payments
+- RBAC/SSO
+- AWS production deployment
+- Redis/Kafka
+- Data warehouse
+- Materialized usage tables
+- Consumer mobile application
+- Application-scoped API keys
+
+## 17. Out of MVP / Deferred
+
+The following do not block the developer-platform MVP:
+
+- iOS deep integration
+- Android system-wide monitoring
+- every LLM integration
+- automatic interception of private AI conversations
+- enterprise gateway
+- GitHub App
+- browser extension
+- automated billing
+- ESG certification
+- real-time data-center telemetry
+- full analytics warehouse
+
+## 18. MVP Release Criteria
 
 1. Developer registration works.
 2. API keys can be created and revoked.
@@ -257,10 +409,13 @@ Cross-provider observability, agent workloads, benchmarking and optimization ins
 5. Every estimate includes range, confidence and methodology version.
 6. Estimates are reproducible.
 7. Provider/model data is versioned.
-8. Usage is recorded.
-9. Dashboard displays usage.
-10. Automated tests pass.
-11. API documentation is available.
-12. Privacy behavior is documented.
-13. No unsupported precision claims are made.
-14. New providers can be added without modifying the core estimation architecture.
+8. Workload usage is persisted.
+9. Applications can be created and associated with workloads.
+10. Usage can be queried by project and application.
+11. Aggregate usage preserves range and data-coverage semantics.
+12. Dashboard can consume usage APIs in a later UI phase.
+13. Automated tests pass.
+14. API documentation is available.
+15. Privacy behavior is documented.
+16. No unsupported precision claims are made.
+17. New providers can be added without modifying the core estimation architecture.
