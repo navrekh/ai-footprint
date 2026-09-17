@@ -86,6 +86,17 @@ class ProjectStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class ApplicationStatus(StrEnum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
+
+class ApplicationEnvironment(StrEnum):
+    DEVELOPMENT = "development"
+    STAGING = "staging"
+    PRODUCTION = "production"
+
+
 class EventMeasurementStatus(StrEnum):
     """Overall completeness of a persisted event's estimate, derived from
     its per-metric statuses (never itself stored - see
@@ -131,4 +142,10 @@ class MetricStatus(StrEnum):
     OK = "ok"
     PARTIAL = "partial"
     INSUFFICIENT_DATA = "insufficient_data"
+
+
+class UsageGranularity(StrEnum):
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
 

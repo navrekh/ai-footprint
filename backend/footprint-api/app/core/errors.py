@@ -17,6 +17,9 @@ class ErrorCode(StrEnum):
     METHODOLOGY_UNAVAILABLE = "METHODOLOGY_UNAVAILABLE"
     RATE_LIMITED = "RATE_LIMITED"
     NOT_FOUND = "NOT_FOUND"
+    APPLICATION_NOT_FOUND = "APPLICATION_NOT_FOUND"
+    APPLICATION_PROJECT_MISMATCH = "APPLICATION_PROJECT_MISMATCH"
+    INVALID_DATE_RANGE = "INVALID_DATE_RANGE"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
@@ -34,6 +37,9 @@ _STATUS_BY_CODE: dict[ErrorCode, int] = {
     ErrorCode.METHODOLOGY_UNAVAILABLE: status.HTTP_200_OK,
     ErrorCode.RATE_LIMITED: status.HTTP_429_TOO_MANY_REQUESTS,
     ErrorCode.NOT_FOUND: status.HTTP_404_NOT_FOUND,
+    ErrorCode.APPLICATION_NOT_FOUND: status.HTTP_404_NOT_FOUND,
+    ErrorCode.APPLICATION_PROJECT_MISMATCH: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ErrorCode.INVALID_DATE_RANGE: status.HTTP_400_BAD_REQUEST,
     ErrorCode.INTERNAL_ERROR: status.HTTP_500_INTERNAL_SERVER_ERROR,
 }
 
@@ -111,3 +117,32 @@ class RateLimitedError(AppError):
 class NotFoundError(AppError):
     def __init__(self, message: str = "Resource not found.") -> None:
         super().__init__(ErrorCode.NOT_FOUND, message)
+
+
+class ApplicationNotFoundError(AppError):
+    """The application does not exist at all in the caller's organization -
+    opaque by design, so it is never distinguishable from an application
+    that exists in a different organization entirely.
+    """
+
+    def __init__(self, message: str = "Application not found.") -> None:
+        super().__init__(ErrorCode.APPLICATION_NOT_FOUND, message)
+
+
+class ApplicationProjectMismatchError(AppError):
+    """The application exists in the caller's own organization but not in
+    the target project - a legitimate, specific validation error (not a
+    cross-tenant leak, since it is scoped to the caller's own
+    organization), matching the existing ForbiddenError precedent used
+    for a project-scoped key's own project mismatch.
+    """
+
+    def __init__(
+        self, message: str = "The application does not belong to the target project."
+    ) -> None:
+        super().__init__(ErrorCode.APPLICATION_PROJECT_MISMATCH, message)
+
+
+class InvalidDateRangeError(AppError):
+    def __init__(self, message: str = "Invalid date range.") -> None:
+        super().__init__(ErrorCode.INVALID_DATE_RANGE, message)
