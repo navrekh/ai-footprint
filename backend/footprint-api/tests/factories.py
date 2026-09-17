@@ -71,17 +71,22 @@ async def create_model(
     session: AsyncSession,
     provider_id: str = "openai",
     name: str = "test-only-model",
+    version: str | None = None,
     modalities: list[str] | None = None,
     methodology_version: str | None = TEST_METHODOLOGY_VERSION,
     status: str = "active",
+    effective_from: date = date(2020, 1, 1),
+    effective_to: date | None = None,
 ) -> Model:
     model = Model(
         provider_id=provider_id,
         name=name,
+        version=version,
         modalities=modalities or ["text"],
         methodology_version=methodology_version,
         status=status,
-        effective_from=date(2020, 1, 1),
+        effective_from=effective_from,
+        effective_to=effective_to,
     )
     session.add(model)
     await session.flush()

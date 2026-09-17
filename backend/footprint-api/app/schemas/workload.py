@@ -10,6 +10,13 @@ class WorkloadInput(BaseModel):
 
     provider: str = Field(min_length=1)
     model: str = Field(min_length=1)
+    model_version: str | None = Field(
+        default=None,
+        description=(
+            "Optional explicit model registry version. When omitted, the current active "
+            "version is resolved deterministically (see ModelResolver)."
+        ),
+    )
     modality: Modality
     activity_type: ActivityType
 
