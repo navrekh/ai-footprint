@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.db_errors import is_unique_violation
 from app.core.errors import InvalidWorkloadError
 from app.db.base import utcnow
 from app.methodology.pipeline import EstimationPipeline
@@ -131,7 +132,7 @@ class WorkloadService:
         an unrelated constraint violation is never mistaken for a
         successful idempotent replay.
         """
-        return _IDEMPOTENCY_CONSTRAINT_NAME in str(exc.orig)
+        return is_unique_violation(exc, _IDEMPOTENCY_CONSTRAINT_NAME)
 
     async def _find_existing_by_idempotency_key(
         self, project_id: str, idempotency_key: str
