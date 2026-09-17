@@ -1,9 +1,9 @@
 # AI FOOTPRINT
 ## Functional Requirements Document (FRD)
-### Version 0.2 — Foundation + Developer Platform
+### Version 0.3 — Foundation + Developer Platform + Resource Intelligence + Developer Experience
 
-**Status:** Approved — Sprint 3 implementation contract  
-**Purpose:** Define the functional and technical requirements for the AI Footprint backend through the Developer Platform & Usage Intelligence milestone.
+**Status:** Approved — Sprint 5 implementation contract  
+**Purpose:** Define the functional and technical requirements for the AI Footprint backend through the Developer Experience & Productization milestone (Sprint 5), building on the Sprint 4 AI Resource Intelligence and Sprint 3 Developer Platform & Usage Intelligence milestones.
 
 ## 1. System Components
 
@@ -17,7 +17,8 @@
 - Usage aggregation service
 - PostgreSQL persistence
 - Audit/request metadata
-- Developer dashboard: later UI phase consuming these APIs
+- Developer console (Sprint 5): dashboard, projects, applications, API keys, usage, compare and API Explorer, consuming these APIs as a client
+- Python SDK (Sprint 5): thin REST client, no estimation logic
 
 ## 2. Domain Hierarchy
 
@@ -826,7 +827,183 @@ Comparison and benchmark execution are stateless; Sprint 4 introduces no compari
 10. No comparison/benchmark-result table, Redis, Kafka, or data warehouse is introduced.
 11. Unit, integration and security tests pass, including methodology-governance and normalization-specific coverage.
 
-## 36. Overall MVP Definition of Done
+## 36. Sprint 5 — Developer Experience & Productization
+
+Sprint 5 makes AI Footprint usable by an external developer without requiring knowledge of the internal repository or estimation-engine implementation. The primary outcome is developer usability, not additional estimation capability. This section defines the target architecture and requirements for that productization work; it is a specification for a future implementation sprint, not a description of code that exists as of this document.
+
+### 36.1 System Architecture
+
+```text
+Developer
+    |
+    v
+REST API / SDK
+    |
+    v
+AIWorkload
+    |
+    +--> Estimation Engine
+    |
+    +--> Usage Intelligence
+    |
+    +--> Resource Intelligence
+    |
+    v
+PostgreSQL
+```
+
+The SDK is a client of the REST API. It must never call the database, the estimation engine, or any internal service directly, and it must never implement estimation logic of its own.
+
+### 36.2 API Contract
+
+Sprint 5 documents the existing endpoints defined in sections 14-16 and 35 without changing their behavior:
+
+- `POST /v1/estimate` — stateless; no persistence.
+- `POST /v1/events` — authenticated; persists the workload; creates an associated estimate when supported; supports idempotency.
+- `POST /v1/batch-estimate` — stateless; bounded.
+- `POST /v1/compare`, `GET /v1/benchmarks`, `GET /v1/benchmarks/{id}`, `POST /v1/benchmarks/run` — remain exactly as defined in section 35.
+- `GET /v1/usage/summary`, `GET /v1/usage/by-provider`, `GET /v1/usage/by-model`, `GET /v1/usage/by-activity`, `GET /v1/usage/by-application`, `GET /v1/usage/timeseries` — remain exactly as defined in section 16.
+
+### 36.3 Request IDs
+
+API responses should expose or make traceable `request_id`, `workload_id`, and `estimate_id` where available, for developer troubleshooting. This documents the existing request-ID mechanism (section 31); Sprint 5 does not invent a new persistence requirement if the existing implementation already provides request IDs through headers or response metadata.
+
+### 36.4 Idempotency
+
+Sprint 5 documents the existing event-ingestion idempotency contract (`idempotency_key` on `POST /v1/events`, scoped by project). The SDK provides a first-class `idempotency_key` argument. Sprint 5 does not redesign the existing database constraint or persistence semantics.
+
+### 36.5 Error Contract
+
+Sprint 5 documents the existing error structure (section 29) unchanged:
+
+```json
+{
+  "error": {
+    "code": "...",
+    "message": "...",
+    "request_id": "..."
+  }
+}
+```
+
+Relevant existing error codes (section 29) are documented for developers. Sprint 5 does not invent a new error hierarchy in the backend.
+
+### 36.6 OpenAPI
+
+Complete OpenAPI documentation is required for the developer-facing API, covering: endpoint descriptions, authentication, request schemas, response schemas, error responses, examples, enum descriptions, pagination semantics, and date-range semantics.
+
+### 36.7 Python SDK
+
+Target architecture (not implementation in this sprint):
+
+```text
+aifootprint/
+├── client.py
+├── events.py
+├── estimates.py
+├── usage.py
+├── compare.py
+├── benchmarks.py
+├── exceptions.py
+└── models.py
+```
+
+Requirements:
+
+- Thin REST client only.
+- API-key authentication.
+- Timeout configuration.
+- Deterministic serialization.
+- Typed request/response models.
+- Useful exception mapping (backend `error.code`/`message` surfaced as typed SDK exceptions).
+- `request_id` exposure on every response/exception.
+- Idempotency support (`idempotency_key` argument on event ingestion).
+- No estimation logic of any kind.
+
+### 36.8 Developer Console
+
+Conceptual routes:
+
+```text
+/dashboard
+/projects
+/projects/{project_id}
+/applications
+/api-keys
+/usage
+/compare
+/api-explorer
+/docs
+```
+
+No particular frontend framework is specified unless one is already established elsewhere in the repository.
+
+### 36.9 API Explorer
+
+Functional requirements: endpoint selection, request editor, authentication, request execution, response viewer, request ID visibility, error visibility, and copyable request examples.
+
+### 36.10 Usage UI
+
+The UI consumes the existing usage APIs and must preserve: total workloads, measured workloads, partial workloads, insufficient-data workloads, measurement coverage, resource ranges, confidence, and methodology version where available.
+
+### 36.11 Compare UI
+
+The UI consumes `POST /v1/compare`. Each candidate remains independent. The UI must never add ranking, score, winner, loser, or recommendation semantics.
+
+### 36.12 Benchmark UI
+
+The UI consumes `GET /v1/benchmarks`, `GET /v1/benchmarks/{id}`, and `POST /v1/benchmarks/run`. Benchmark definitions remain static/versioned, as defined in section 35.3.
+
+### 36.13 Security
+
+Existing API-key and tenant isolation rules (sections 27, 31) remain unchanged. The developer console must not bypass backend authorization — every console action goes through the same authenticated REST API a direct API caller would use. API keys must never be persisted in plaintext. Raw API key display remains creation-time only.
+
+### 36.14 Privacy
+
+No prompt/response/source-code storage requirement is introduced. Section 30 remains unchanged.
+
+### 36.15 Performance
+
+The SDK and console are clients of the existing stateless APIs. Sprint 5 does not introduce Redis, Kafka, a data warehouse, or background-job infrastructure merely to support the SDK or console.
+
+### 36.16 Testing Requirements
+
+Future Sprint 5 implementation tests must cover:
+
+**SDK:** authentication, serialization, timeout, API error mapping, request ID, idempotency, typed responses.
+
+**API:** existing endpoint contract regression, OpenAPI schema validation.
+
+**Console:** authentication, project/application selection, API key handling, API Explorer request execution, usage rendering, range rendering, insufficient-data rendering, compare candidate independence.
+
+**Security:** no API-key leakage, tenant isolation, project isolation, backend authorization enforcement.
+
+### 36.17 Sprint 5 Definition of Done
+
+Sprint 5 is complete only when:
+
+1. Developer documentation is complete.
+2. OpenAPI contract is complete and accurate.
+3. Quick Start is usable by a new developer.
+4. Official Python SDK is available.
+5. SDK contains no estimation logic.
+6. Developer console is functional.
+7. API Explorer can execute authenticated API calls.
+8. Projects, applications and API keys are usable from the console.
+9. Usage can be viewed using existing usage APIs.
+10. Compare can be executed/viewed.
+11. Benchmarks can be executed/viewed.
+12. Range and measurement-coverage semantics are preserved.
+13. Request correlation is visible.
+14. Idempotency is documented and supported by the SDK.
+15. Privacy and methodology behavior are clearly documented.
+16. No new estimation path is introduced.
+17. No fabricated methodology data is introduced.
+18. Existing Sprint 1-4 functionality remains backward compatible.
+19. Automated tests pass.
+20. Lint/type checks pass.
+
+## 37. Overall MVP Definition of Done
 
 MVP backend foundation is complete when:
 
