@@ -9,6 +9,7 @@ from app.methodology.pipeline import EstimationPipeline
 from app.models.estimate import Estimate
 from app.models.workload import AIWorkload
 from app.schemas.workload import EventCreateRequest
+from app.services.application_service import ApplicationService
 
 _IDEMPOTENCY_CONSTRAINT_NAME = "uq_workload_project_idempotency_key"
 
@@ -57,11 +58,17 @@ class WorkloadService:
         if payload.parent_workload_id:
             await self._ensure_parent_in_organization(payload.parent_workload_id, organization_id)
 
+        if payload.application_id:
+            await ApplicationService(self._db).resolve_for_workload(
+                organization_id, project_id, payload.application_id
+            )
+
         result = await self._pipeline.run(payload)
 
         workload = AIWorkload(
             organization_id=organization_id,
             project_id=project_id,
+            application_id=payload.application_id,
             provider=result.provider,
             model=result.model,
             model_version=result.model_version,
