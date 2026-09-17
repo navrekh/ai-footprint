@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import generate_api_key
 from app.core.slugs import slugify
 from app.models.api_key import ApiKey
+from app.models.application import Application
 from app.models.methodology import Methodology
 from app.models.methodology_factor import MethodologyFactor
 from app.models.model import Model
@@ -34,6 +35,28 @@ async def create_project(
     session.add(project)
     await session.flush()
     return project
+
+
+async def create_application(
+    session: AsyncSession,
+    project_id: str,
+    name: str = "Test Application",
+    *,
+    description: str | None = None,
+    status: str = "active",
+    environment: str | None = None,
+) -> Application:
+    application = Application(
+        project_id=project_id,
+        name=name,
+        slug=_unique_slug(name),
+        description=description,
+        status=status,
+        environment=environment,
+    )
+    session.add(application)
+    await session.flush()
+    return application
 
 
 async def create_api_key(
