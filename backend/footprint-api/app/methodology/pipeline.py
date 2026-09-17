@@ -41,19 +41,26 @@ class EstimationPipeline:
 
         provider = await self._provider_resolver.resolve(workload.provider)
         model = await self._model_resolver.resolve(
-            provider, workload.model, workload.modality.value
+            provider, workload.model, workload.modality.value, workload.model_version
         )
-        await self._methodology_resolver.resolve(model.methodology_version)
+
+        # The methodology registry is authoritative (sprint review, item 1):
+        # a model may reference a methodology_version, but factors under
+        # that version must never be used unless the Methodology record
+        # itself actually exists. A dangling reference yields
+        # insufficient_data for every metric, never a fabricated or
+        # inferred methodology.
+        methodology = await self._methodology_resolver.resolve(model.methodology_version)
 
         energy_factor = water_factor = carbon_factor = None
-        if model.methodology_version:
+        if methodology is not None:
             energy_factor = await self._factor_repository.find_best_factor(
                 metric="energy",
                 provider=provider.id,
                 model=model.name,
                 modality=workload.modality.value,
                 activity_type=workload.activity_type.value,
-                methodology_version=model.methodology_version,
+                methodology_version=methodology.version,
             )
             water_factor = await self._factor_repository.find_best_factor(
                 metric="water",
@@ -61,7 +68,7 @@ class EstimationPipeline:
                 model=model.name,
                 modality=workload.modality.value,
                 activity_type=workload.activity_type.value,
-                methodology_version=model.methodology_version,
+                methodology_version=methodology.version,
             )
             carbon_factor = await self._factor_repository.find_best_factor(
                 metric="carbon",
@@ -69,21 +76,24 @@ class EstimationPipeline:
                 model=model.name,
                 modality=workload.modality.value,
                 activity_type=workload.activity_type.value,
-                methodology_version=model.methodology_version,
+                methodology_version=methodology.version,
             )
 
-        energy_raw = self._energy_estimator.estimate(energy_factor)
-        water_raw = self._water_estimator.estimate(water_factor)
-        carbon_raw = self._carbon_estimator.estimate(carbon_factor)
+        # UncertaintyEngine.aggregate() combines confidence/evidence/
+        # assumptions metadata as well as min/max, even for a single-item
+        # list, so the post-aggregation estimates already carry everything
+        # needed for the top-level confidence/evidence combination below.
+        energy = UncertaintyEngine.aggregate(
+            [self._energy_estimator.estimate(energy_factor)], unit="Wh"
+        )
+        water = UncertaintyEngine.aggregate(
+            [self._water_estimator.estimate(water_factor)], unit="mL"
+        )
+        carbon = UncertaintyEngine.aggregate(
+            [self._carbon_estimator.estimate(carbon_factor)], unit="gCO2e"
+        )
 
-        # UncertaintyEngine.aggregate() only propagates min/max ranges - the
-        # per-factor metadata (confidence, evidence level, assumptions) is
-        # combined separately below from the raw, pre-aggregation estimates.
-        energy = UncertaintyEngine.aggregate([energy_raw], unit="Wh")
-        water = UncertaintyEngine.aggregate([water_raw], unit="mL")
-        carbon = UncertaintyEngine.aggregate([carbon_raw], unit="gCO2e")
-
-        available = [m for m in (energy_raw, water_raw, carbon_raw) if m.status == MetricStatus.OK]
+        available = [m for m in (energy, water, carbon) if m.status == MetricStatus.OK]
         confidence = ConfidenceEngine.combine([m.confidence for m in available if m.confidence])
         evidence_level = ConfidenceEngine.combine_evidence_levels(
             [m.evidence_level for m in available if m.evidence_level is not None]
@@ -98,6 +108,6 @@ class EstimationPipeline:
             confidence=confidence,
             evidence_level=evidence_level,
             accounting_boundary=accounting_boundary,
-            methodology_version=model.methodology_version,
+            methodology_version=methodology.version if methodology else None,
             assumptions=assumptions,
         )
