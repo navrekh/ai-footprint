@@ -1,10 +1,10 @@
 # AI FOOTPRINT
 ## Product Requirements Document (PRD)
-### Version 0.2 — Foundation + Developer Platform
+### Version 0.3 — Foundation + Developer Platform + Resource Intelligence + Developer Experience
 
 **Product:** AI Footprint  
 **Working tagline:** Know the hidden resource impact of AI.  
-**Status:** Approved — Sprint 3 baseline  
+**Status:** Approved — Sprint 5 baseline  
 
 ## 1. Executive Summary
 
@@ -164,7 +164,7 @@ The resource-impact result associated with a workload, including range, confiden
 
 ## 8. MVP and Current Platform Scope
 
-The initial MVP establishes the measurement infrastructure. Sprint 1 and Sprint 2 establish the backend foundation, persistence and lifecycle management. Sprint 3 extends this into a developer platform and usage-intelligence layer.
+The initial MVP establishes the measurement infrastructure. Sprint 1 and Sprint 2 establish the backend foundation, persistence and lifecycle management. Sprint 3 extends this into a developer platform and usage-intelligence layer. Sprint 4 extends this into cross-provider AI resource intelligence (workload comparison, standardized benchmarks and normalized resource intensity). Sprint 5 extends this into developer experience and productization (documentation, Quick Start, official Python SDK and a developer console), without adding new estimation capability.
 
 ### Foundation
 - Footprint Engine
@@ -191,6 +191,21 @@ The initial MVP establishes the measurement infrastructure. Sprint 1 and Sprint 
 - Usage breakdown by application
 - Usage time series
 - Measurement coverage reporting
+
+### AI Resource Intelligence
+- Workload comparison across provider/model candidates
+- Standardized, versioned benchmark definitions
+- Benchmark listing, retrieval and execution
+- Normalized resource intensity (per token/image/second/minute where defensible)
+- Methodology-data governance and validation tooling
+
+### Developer Experience & Productization
+- Complete developer-facing API documentation and OpenAPI contract
+- Quick Start enabling a first successful measurement in approximately 10 minutes
+- Official thin Python SDK (REST client only, no estimation logic)
+- Minimal developer console (dashboard, projects, applications, API keys, usage, compare)
+- Interactive API Explorer
+- Visible request correlation (request_id, workload_id, estimate_id)
 
 ### Initial Providers
 - OpenAI
@@ -248,7 +263,7 @@ If an aggregate contains unsupported or insufficient-data workloads, the aggrega
 Install/open → account → record activity → estimate → understand → history → share.
 
 ### Developer
-Sign up → organization → project → application → API key → documentation → submit AI workload → receive estimate → usage dashboard.
+Sign up → organization → project → application → API key → Quick Start → submit AI workload → receive estimate → view usage → compare workloads → integrate SDK.
 
 ### Enterprise
 Organization → projects → applications → API integrations → aggregate usage → measurement coverage → analytics/reporting.
@@ -266,7 +281,7 @@ Usage-based plans with free, startup, growth and enterprise tiers.
 ### Enterprise
 Subscription based on workload volume, applications, users, analytics and integrations.
 
-Billing implementation is not part of Sprint 3.
+Billing implementation is not part of Sprint 1–5.
 
 ## 12. Privacy
 
@@ -302,6 +317,8 @@ Application, provider, model, workload metadata and measurement results should b
 - Monthly workloads
 - SDK adoption
 - Usage dashboard engagement
+- Quick Start completion rate
+- API Explorer usage
 
 ### Business
 - Free-to-paid conversion
@@ -317,8 +334,14 @@ PRD, FRD, architecture, methodology, data model, API specification.
 ### Phase 1 — Footprint Engine
 Calculation engine, provider/model registry, methodology registry, tests.
 
-### Phase 2 — Developer Platform
-Developer accounts, projects, API keys, application management, usage intelligence, dashboard, docs and SDKs.
+### Phase 2 — Developer Platform / Productization
+Developer accounts, projects, API keys, application management, usage intelligence, resource intelligence, developer console, docs and SDKs, delivered across:
+
+- Sprint 1 — Footprint Engine
+- Sprint 2 — Persistence & Lifecycle
+- Sprint 3 — Developer Platform & Usage Intelligence
+- Sprint 4 — AI Resource Intelligence
+- Sprint 5 — Developer Experience & Productization
 
 ### Phase 3 — Consumer Web/Mobile
 Mobile UX, application, activity history, dashboard, shareable footprint.
@@ -329,8 +352,8 @@ Browser extension, GitHub, coding tools, AI application SDK.
 ### Phase 5 — Enterprise
 Advanced organization management, analytics, reporting, SSO, RBAC and gateway.
 
-### Phase 6 — AI Resource Intelligence
-Cross-provider observability, agent workloads, benchmarking and optimization insights.
+### Phase 6 — AI Resource Intelligence (continued)
+Sprint 4 delivered the initial cross-provider comparison and standardized benchmarking foundation under Phase 2. This phase covers what remains beyond that: deeper cross-provider observability, agent-workload analytics, and optimization insights. This phase does not include a ranking, scoring or recommendation engine, which remain explicit non-goals.
 
 ## 16. Sprint 3 — Developer Platform & Usage Intelligence
 
@@ -425,7 +448,86 @@ Sprint 4 does not add real provider/model environmental factors. Production meth
 - No billing, Stripe, RBAC/SSO, AWS deployment, Redis, Kafka, or data warehouse.
 - No fabricated or internet-sourced production environmental factors for any provider.
 
-## 18. Out of MVP / Deferred
+## 18. Sprint 5 — Developer Experience & Productization
+
+The product objective of Sprint 5 is to make AI Footprint usable by an external developer without requiring knowledge of the internal repository or estimation-engine implementation. The primary Sprint 5 outcome is developer usability, not additional estimation capability.
+
+Target developer journey:
+
+Sign up → Create Organization → Create Project → Create Application → Create API Key → Read Quick Start → Send first workload → Receive footprint → View usage → Compare workloads → Integrate SDK.
+
+### In scope
+
+1. Developer API productization: a clear, stable, well-documented developer-facing API contract over the existing endpoints.
+2. Complete OpenAPI and reference documentation: authentication, API key usage, request/response examples, error contract, request IDs, idempotency, pagination, date ranges, insufficient-data semantics, methodology/provenance, and privacy behavior.
+3. Quick Start: a developer unfamiliar with the repository should be able to make a first successful measurement in approximately 10 minutes.
+4. A thin official Python SDK that calls the REST API and does not duplicate footprint-estimation logic.
+5. A minimal developer console: dashboard, projects, applications, API keys, usage, compare, API Explorer, and documentation.
+6. An interactive API Explorer for constructing, executing and inspecting authenticated API calls, including request_id visibility and error explanation.
+7. A usage overview UI that visualizes the existing usage APIs.
+8. A compare/benchmark UI that exposes the existing Sprint 4 capabilities.
+9. Integration diagnostics: visible request correlation (request_id, workload_id, and estimate_id where available) to help developers troubleshoot integrations.
+
+### Developer API productization
+
+Existing capabilities must be documented clearly, without changing endpoint behavior:
+
+- `POST /v1/estimate` — stateless calculation, not persisted.
+- `POST /v1/events` — workload ingestion and persistence, with an associated estimate created when supported.
+- `POST /v1/batch-estimate` — bounded, stateless batch calculation.
+- `POST /v1/compare` — provider/model comparison for one workload definition.
+- `GET /v1/benchmarks`, `GET /v1/benchmarks/{id}`, `POST /v1/benchmarks/run` — standardized benchmark definitions and execution.
+- `GET /v1/usage/summary`, `GET /v1/usage/by-provider`, `GET /v1/usage/by-model`, `GET /v1/usage/by-activity`, `GET /v1/usage/by-application`, `GET /v1/usage/timeseries` — usage intelligence.
+
+`POST /v1/estimate` and `POST /v1/events` must be explicitly distinguished in all developer-facing documentation: the former is stateless calculation with no persistence; the latter is workload ingestion/persistence, with an associated estimate created when supported.
+
+### Python SDK
+
+A thin official Python SDK calling the REST API only. Conceptual interface:
+
+```python
+from aifootprint import AI
+
+client = AI(api_key="af_live_xxx")
+
+result = client.events.create(
+    project_id="proj_xxx",
+    application_id="app_xxx",
+    provider="openai",
+    model="model-id",
+    modality="text",
+    activity_type="text_generation",
+    input_tokens=2000,
+    output_tokens=1000,
+)
+```
+
+The SDK exposes `events`, `estimates`, `usage`, `compare`, and `benchmarks`. It must not contain estimation logic, environmental coefficients, or any duplicate methodology calculation — it is a client of the existing REST API, nothing more.
+
+### Developer console and API Explorer
+
+A minimal developer console (Dashboard, Projects, Applications, API Keys, Usage, Compare, API Explorer, Documentation) prioritizing developer onboarding and API usability over enterprise analytics. The API Explorer lets a developer choose an endpoint, provide/select an API key, construct a request, execute it, and inspect the response, request_id, and any errors.
+
+The usage overview and compare/benchmark UI must preserve measurement coverage, min/max ranges, confidence, and insufficient-data states exactly as the underlying APIs report them, and must never convert a range into a false point estimate. The compare/benchmark UI must not introduce a winner, best model, score, ranking, or recommendation — it presents measurements and methodology information only.
+
+### Privacy and idempotency
+
+The developer integration must not require prompts, generated responses, private images, or source code — core measurement continues to operate on workload metadata only. The SDK provides a convenient, first-class mechanism for supplying an idempotency key for event ingestion, documenting the existing idempotency contract rather than redesigning it.
+
+### No new estimation logic
+
+Sprint 5 must not introduce another estimation path, estimation algorithm, environmental coefficient, methodology calculation, or provider-specific calculation logic. Sprint 4's estimation engine remains the single runtime authority.
+
+### Explicit non-goals for Sprint 5
+
+- Live provider interception; automatic OpenAI, Anthropic, or Google integration.
+- Browser extension, GitHub App, or mobile application.
+- Billing, Stripe, RBAC, or SSO.
+- Kafka; Redis unless later justified by an actual requirement; data warehouse; Kubernetes; enterprise gateway.
+- Optimization engine or recommendation engine.
+- New footprint calculation logic, new environmental coefficients, or a new methodology estimation path.
+
+## 19. Out of MVP / Deferred
 
 The following do not block the developer-platform MVP:
 
@@ -441,7 +543,7 @@ The following do not block the developer-platform MVP:
 - real-time data-center telemetry
 - full analytics warehouse
 
-## 19. MVP Release Criteria
+## 20. MVP Release Criteria
 
 1. Developer registration works.
 2. API keys can be created and revoked.
@@ -454,7 +556,7 @@ The following do not block the developer-platform MVP:
 9. Applications can be created and associated with workloads.
 10. Usage can be queried by project and application.
 11. Aggregate usage preserves range and data-coverage semantics.
-12. Dashboard can consume usage APIs in a later UI phase.
+12. Developer console can consume usage APIs (Sprint 5).
 13. Automated tests pass.
 14. API documentation is available.
 15. Privacy behavior is documented.
