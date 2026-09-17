@@ -71,12 +71,19 @@ class WorkloadHistoryService:
 
         return items, next_cursor
 
-    async def get_owned(self, organization_id: str, workload_id: str) -> AIWorkload:
-        result = await self._db.execute(
-            select(AIWorkload).where(
-                AIWorkload.id == workload_id, AIWorkload.organization_id == organization_id
-            )
-        )
+    async def get_owned(
+        self, organization_id: str, workload_id: str, *, project_id: str | None = None
+    ) -> AIWorkload:
+        """Fetches a single workload scoped to organization_id and,
+        when the caller holds a project-scoped key, also to project_id -
+        the same rule list_for_organization applies, so a project-scoped
+        key can never read another project's workload even within the
+        same organization (sprint 2 follow-up review, item 1).
+        """
+        conditions = [AIWorkload.id == workload_id, AIWorkload.organization_id == organization_id]
+        if project_id is not None:
+            conditions.append(AIWorkload.project_id == project_id)
+        result = await self._db.execute(select(AIWorkload).where(*conditions))
         workload = result.scalar_one_or_none()
         if workload is None:
             raise NotFoundError("Workload not found.")

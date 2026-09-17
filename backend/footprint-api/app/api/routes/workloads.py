@@ -60,5 +60,8 @@ async def get_workload(
     db: AsyncSession = Depends(get_db_session),
     auth: AuthContext = Depends(get_auth_context),
 ) -> WorkloadRead:
-    workload = await WorkloadHistoryService(db).get_owned(auth.organization.id, workload_id)
+    project_filter = resolve_optional_project_filter(auth, None)
+    workload = await WorkloadHistoryService(db).get_owned(
+        auth.organization.id, workload_id, project_id=project_filter
+    )
     return WorkloadRead.model_validate(workload)

@@ -10,6 +10,7 @@ from app.schemas.common import MetricRange
 from app.schemas.estimate import PersistedEstimateRead
 from app.services.auth_service import AuthContext
 from app.services.estimate_history_service import EstimateHistoryService
+from app.services.tenant_context import resolve_optional_project_filter
 
 router = APIRouter()
 
@@ -62,5 +63,8 @@ async def get_estimate(
     db: AsyncSession = Depends(get_db_session),
     auth: AuthContext = Depends(get_auth_context),
 ) -> PersistedEstimateRead:
-    estimate = await EstimateHistoryService(db).get_owned(auth.organization.id, estimate_id)
+    project_filter = resolve_optional_project_filter(auth, None)
+    estimate = await EstimateHistoryService(db).get_owned(
+        auth.organization.id, estimate_id, project_id=project_filter
+    )
     return _to_persisted_estimate_read(estimate)
