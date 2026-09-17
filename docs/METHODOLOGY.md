@@ -260,3 +260,52 @@ The MVP engine must calculate only where an approved factor exists for the workl
 `provider/model/activity/region → factor → energy → water/carbon → range/confidence`
 
 No hard-coded environmental constants belong in controllers, API routes or UI code.
+
+## 24. Comparison and benchmarking (Sprint 4)
+
+Comparison evaluates one workload definition against multiple provider/model candidates by running each candidate independently through the estimation chain described in section 1. Comparison never combines candidates: each retains its own range, confidence, evidence level, methodology version and assumptions, and the platform never designates a candidate as a winner, loser, or recommendation. This is a direct application of core principle 1 (never claim more certainty than the evidence supports) extended to a multi-candidate context: declaring one candidate "best" would imply a precision and a value judgment the methodology does not, and should not, make.
+
+A benchmark is a fixed, versioned workload definition used to run comparison consistently and reproducibly. Benchmark definitions describe workload shape only (activity type, modality, quantities); they carry no environmental coefficients of their own and do not bypass the normal factor-resolution process. A benchmark that lacks an approved factor for a given candidate returns `insufficient_data` exactly as any other workload would.
+
+## 25. Normalization semantics
+
+Normalization expresses an already-computed estimate relative to a workload quantity (e.g. energy per 1,000 tokens). It is **presentation-layer arithmetic** applied to an existing, approved range — it never creates a new factor, never changes a stored coefficient, and never runs a different calculation than the one described in sections 5–12.
+
+### Denominator definitions
+
+| Workload type | Denominator | Basis identifier | Unit |
+|---|---|---|---|
+| Text / reasoning (token-based) | `input_tokens + output_tokens` | `input_plus_output` | per 1,000 tokens |
+| Image | `image_count` | `image_count` | per image |
+| Video | `video_seconds` | `video_seconds` | per second |
+| Audio | `audio_seconds / 60` | `audio_minutes` | per minute |
+
+The `input_plus_output` basis for text is the explicit default: total tokens processed, not output tokens alone, since both directions of a request consume resources. This choice is documented here rather than left implicit in code, and the basis identifier is always returned alongside the normalized value so it is auditable.
+
+### Applicable workload types
+
+Eligibility for normalization is determined by which quantity fields are actually present on the workload being estimated, not by activity type alone. A workload with no token/image/video-second/audio-second field populated has no normalized value — none is invented, and token normalization is never forced onto a workload that has no token fields (e.g. image or video workloads are never expressed "per token").
+
+### Handling of zero/absent denominators
+
+If the relevant quantity is zero or was not supplied, the normalized value for that metric is absent (not zero, not an error, not a fabricated approximation).
+
+### Behavior when methodology data is insufficient
+
+If the underlying raw estimate for a metric is `insufficient_data`, the normalized value for that metric is also `insufficient_data`, with `min`/`max` absent. Normalization can never turn an unmeasured metric into a measured-looking one, and can never turn a measured metric into a more precise one than the raw estimate supports.
+
+### Relationship between normalized and raw values
+
+Every normalized range is derived by dividing the raw estimate's `min` and `max` independently by the denominator. The normalized value always carries forward the same `status`, `confidence`, `evidence_level`, `methodology_version` and `accounting_boundary` as the raw estimate it was derived from — normalization changes the scale of the number, never its evidentiary basis.
+
+### Uncertainty preservation
+
+Normalization preserves the range: `min` and `max` are each divided independently. A normalized value is never collapsed into a single point value (e.g. never `(min + max) / 2`), for the same reason the raw estimate is never collapsed that way.
+
+## 26. Methodology data governance
+
+Production-approved methodology data requires all of the following before it may be used at runtime: an authoritative source, documented provenance (source and source date), an assigned, immutable methodology version, an assigned evidence level, and explicit production approval by a human reviewer. Data lacking any of these remains `TEST_ONLY` or is rejected outright; it is never promoted automatically.
+
+`TEST_ONLY` fixture data (as seeded by `scripts/seed.py --with-test-only-demo-data`) exists solely to exercise the estimation, comparison and benchmark mechanisms end-to-end in local development and CI. It is clearly marked as `TEST_ONLY` in its methodology version, source text and factor id, must never be treated as a real measurement, and must never be seeded into a shared, staging or production database.
+
+A read-only validation tool (`scripts/validate_methodology.py`) checks persisted methodology data for structural completeness — referential integrity (provider/model/methodology references), valid units and ranges, complete provenance and evidence information, taxonomy conformance, absence of duplicate/conflicting factors, absence of pre-normalized units, and consistent `TEST_ONLY`-vs-production labeling. The validator is advisory tooling: it reports findings and never modifies data, never invents or infers a missing value, and never grants production approval. It is not part of the runtime estimation path — `EstimationPipeline` remains the sole authority for what an estimate resolves to at request time. A future sprint may add a stronger, schema-enforced classification (e.g. an explicit `is_test_only` column) if convention-based classification proves insufficient; Sprint 4 does not add it in order to avoid an unnecessary migration for the data volume that exists today.

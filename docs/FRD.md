@@ -642,6 +642,7 @@ Initial error codes:
 - APPLICATION_NOT_FOUND
 - APPLICATION_PROJECT_MISMATCH
 - INVALID_DATE_RANGE
+- BENCHMARK_NOT_FOUND
 - INTERNAL_ERROR
 
 ## 30. Privacy
@@ -754,7 +755,78 @@ Sprint 3 is complete when:
 19. No separate synchronized usage ledger is introduced.
 20. Existing Sprint 1 and Sprint 2 behavior remains backward compatible except where stricter authorization is intentionally enforced.
 
-## 35. Overall MVP Definition of Done
+## 35. Sprint 4 — AI Resource Intelligence
+
+### 35.1 Scope
+
+Sprint 4 delivers AI Resource Intelligence: workload comparison across provider/model candidates, standardized benchmark definitions, normalized resource intensity, and a methodology-data governance/validation mechanism. It builds entirely on the existing estimation engine and taxonomy; it does not introduce a second estimation path or a competing workload taxonomy.
+
+### 35.2 POST /v1/compare
+
+Request: one workload definition (the same shape as the existing `/v1/estimate` request body) plus a `candidates` list of `{provider, model, model_version?}`, with `length >= 2` and bounded by a configured maximum (`MAX_COMPARE_CANDIDATES`, mirroring `MAX_BATCH_SIZE`).
+
+Each candidate is estimated independently via the existing estimation pipeline. Every candidate's result must retain its own energy/water/carbon min/max, metric status, confidence, evidence level, accounting boundary, methodology version, assumptions and provenance. Candidates must never be aggregated, averaged, or summed together, and the response must never contain a winner, loser, best/cheapest/lowest-carbon/lowest-energy/recommended model, ranking, or score field of any kind. A single candidate's failure (unknown provider, unknown/unsupported model, or missing methodology data) is reported for that candidate only and does not affect any other candidate's result.
+
+This endpoint requires a valid API key. It does not read or write tenant-owned data, and it does not accept `organization_id`/`project_id` as request fields.
+
+### 35.3 Benchmark definitions
+
+A benchmark is a deterministic, versioned, named workload definition: `benchmark_id`, `version`, `name`, `description`, `activity_type`, `modality`, and a fixed set of workload parameters sufficient to reproduce the exact workload. Benchmark definitions are static/versioned configuration, not a database-managed resource, and there is no benchmark CRUD/admin API. Every benchmark's `activity_type`/`modality` must be one of the existing taxonomy values defined in section 5 of this document; Sprint 4 introduces no competing taxonomy.
+
+### 35.4 GET /v1/benchmarks
+
+Lists benchmark definitions (id, version, name, description, activity_type, modality) in deterministic order. Public; no authentication required, consistent with `GET /v1/providers`, `GET /v1/models` and `GET /v1/methodology`. Supports optional `activity_type`/`modality` filters.
+
+### 35.5 GET /v1/benchmarks/{id}
+
+Returns one benchmark definition's full detail, including its fixed workload parameters. Public; no authentication required. Returns `BENCHMARK_NOT_FOUND` (404) when the id does not match a known definition.
+
+### 35.6 POST /v1/benchmarks/run
+
+Request: `{benchmark_id, candidates}`, where `candidates` follows the same shape and limits as `/v1/compare`. Looks up the named benchmark definition, builds its fixed workload, and executes it through the same internal comparison mechanism used by `/v1/compare`, producing the same per-candidate result shape plus the executed `benchmark_id`/`benchmark_version` for provenance. Requires a valid API key; same tenant-data restrictions as `/v1/compare`. A benchmark may legitimately return `insufficient_data` for a candidate when no approved methodology factor exists — this must never be replaced with a fabricated or inferred value.
+
+### 35.7 Normalized resource intensity
+
+Where the workload's populated fields support a scientifically defensible denominator, comparison and benchmark results may include a normalized resource-intensity range alongside the raw range:
+
+| Workload quantity present | Denominator basis | Applies when |
+|---|---|---|
+| `input_tokens` / `output_tokens` | `input_plus_output` (sum), per 1,000 tokens | sum > 0 |
+| `image_count` | `image_count`, per image | > 0 |
+| `video_seconds` | `video_seconds`, per second | > 0 |
+| `audio_seconds` | `audio_minutes` (seconds / 60), per minute | > 0 |
+
+Token-based normalization must never be forced onto a workload without token fields, and no denominator is invented for a workload type with none of the above quantities populated — in that case the normalized value is simply absent (not zero, not an error). The denominator itself (value, unit, and basis) must be exposed alongside the normalized range so it is auditable. A normalized range must carry the same status, confidence, evidence level, methodology version and accounting boundary as its underlying raw estimate, and must itself be expressed as a `min`/`max` range — never averaged into a single point value.
+
+### 35.8 Methodology data governance and validation
+
+The platform must not fabricate or infer methodology data. Production-approved methodology data requires an authoritative source, documented provenance, an assigned methodology version, an evidence level, and explicit production approval; where such data does not exist, the estimation pipeline continues to return `insufficient_data` rather than an invented value.
+
+Sprint 4 introduces a read-only, advisory validation tool over the existing `Provider`/`Model`/`Methodology`/`MethodologyFactor` tables that checks for: missing provider/model/methodology references, invalid units, invalid ranges (including min > max), missing provenance or evidence information, unsupported activity types, duplicate or conflicting factors, factor units that already encode a normalization (which would violate the presentation-layer-only rule for normalization), and `TEST_ONLY` fixture data that is inconsistently or incorrectly represented as production-approved. The validator must not invent or infer missing values, and it must not implement a second estimation path — the estimation pipeline remains the sole runtime authority for what an estimate resolves to. The validator distinguishes three classifications: valid production data, valid `TEST_ONLY` data, and invalid/incomplete data.
+
+### 35.9 Security
+
+`POST /v1/compare` and `POST /v1/benchmarks/run` require API-key authentication but perform no tenant-scoped reads or writes and do not accept `organization_id`/`project_id` as authoritative request fields. `GET /v1/benchmarks` and `GET /v1/benchmarks/{id}` are public. No change is made to `tenant_context.py`, existing API-key authorization semantics, or Sprint 2/3 organization/project isolation.
+
+### 35.10 Persistence and performance
+
+Comparison and benchmark execution are stateless; Sprint 4 introduces no comparison or benchmark-result tables, no Redis, no Kafka, no data warehouse, and no background job infrastructure. The comparison/benchmark execution loop is bounded by `MAX_COMPARE_CANDIDATES`.
+
+### 35.11 Sprint 4 Definition of Done
+
+1. `POST /v1/compare` evaluates one workload against 2+ provider/model candidates, each independently, with no aggregation and no ranking/score/winner field anywhere in the response.
+2. `GET /v1/benchmarks`, `GET /v1/benchmarks/{id}` and `POST /v1/benchmarks/run` work against static, versioned, deterministically-ordered benchmark definitions expressed in the existing taxonomy.
+3. Benchmark execution reuses the same internal mechanism as `/v1/compare`; no second estimation path exists.
+4. Normalized resource intensity is exposed only where a defensible denominator exists, with auditable denominator metadata, and preserves status/confidence/methodology version/provenance from the underlying raw estimate.
+5. No real provider/model environmental factor is fabricated or added without authoritative source, provenance, methodology version, evidence level and explicit approval.
+6. `insufficient_data` is preserved wherever approved methodology data is unavailable, for both raw and normalized values.
+7. A read-only methodology validation tool exists, distinguishes production/`TEST_ONLY`/invalid data, and does not alter runtime behavior.
+8. No tenant-owned data is read, written, or exposed by comparison or benchmark execution; `organization_id`/`project_id` are never accepted as authoritative request fields.
+9. `/v1/estimate`, `/v1/batch-estimate`, `/v1/events`, workload/estimate history, application APIs and usage APIs are unchanged.
+10. No comparison/benchmark-result table, Redis, Kafka, or data warehouse is introduced.
+11. Unit, integration and security tests pass, including methodology-governance and normalization-specific coverage.
+
+## 36. Overall MVP Definition of Done
 
 MVP backend foundation is complete when:
 
