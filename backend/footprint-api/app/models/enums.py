@@ -149,3 +149,16 @@ class UsageGranularity(StrEnum):
     WEEK = "week"
     MONTH = "month"
 
+
+class NormalizationBasis(StrEnum):
+    """The workload quantity a normalized resource-intensity range was
+    divided by (docs/METHODOLOGY.md section 25). Always returned alongside
+    a normalized value so the calculation is auditable rather than
+    implicit.
+    """
+
+    INPUT_PLUS_OUTPUT = "input_plus_output"
+    IMAGE_COUNT = "image_count"
+    VIDEO_SECONDS = "video_seconds"
+    AUDIO_MINUTES = "audio_minutes"
+

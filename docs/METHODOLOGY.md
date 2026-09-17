@@ -273,14 +273,14 @@ Normalization expresses an already-computed estimate relative to a workload quan
 
 ### Denominator definitions
 
-| Workload type | Denominator | Basis identifier | Unit |
+| Workload type | Denominator value | Basis identifier | Unit |
 |---|---|---|---|
-| Text / reasoning (token-based) | `input_tokens + output_tokens` | `input_plus_output` | per 1,000 tokens |
+| Text / reasoning (token-based) | `(input_tokens + output_tokens) / 1000` | `input_plus_output` | per 1,000 tokens |
 | Image | `image_count` | `image_count` | per image |
 | Video | `video_seconds` | `video_seconds` | per second |
 | Audio | `audio_seconds / 60` | `audio_minutes` | per minute |
 
-The `input_plus_output` basis for text is the explicit default: total tokens processed, not output tokens alone, since both directions of a request consume resources. This choice is documented here rather than left implicit in code, and the basis identifier is always returned alongside the normalized value so it is auditable.
+The denominator's `value` is always already expressed in the stated `unit`, so `raw_range / denominator.value` is the complete calculation - there is no hidden extra scaling factor a caller would need to know separately. The `input_plus_output` basis for text is the explicit default: total tokens processed, not output tokens alone, since both directions of a request consume resources. This choice is documented here rather than left implicit in code, and the basis identifier is always returned alongside the normalized value so it is auditable.
 
 ### Applicable workload types
 

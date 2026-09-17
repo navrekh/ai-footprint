@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     # Bounds referenced by the batch endpoint (section 21)
     MAX_BATCH_SIZE: int = 100
 
+    # Bounds referenced by POST /v1/compare and POST /v1/benchmarks/run
+    # (sprint 4 FRD section 35.2)
+    MAX_COMPARE_CANDIDATES: int = 10
+
     @property
     def sync_database_url(self) -> str:
         """Synchronous (psycopg) equivalent of DATABASE_URL, used by Alembic."""

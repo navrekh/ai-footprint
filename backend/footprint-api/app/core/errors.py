@@ -20,6 +20,7 @@ class ErrorCode(StrEnum):
     APPLICATION_NOT_FOUND = "APPLICATION_NOT_FOUND"
     APPLICATION_PROJECT_MISMATCH = "APPLICATION_PROJECT_MISMATCH"
     INVALID_DATE_RANGE = "INVALID_DATE_RANGE"
+    BENCHMARK_NOT_FOUND = "BENCHMARK_NOT_FOUND"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
@@ -40,6 +41,7 @@ _STATUS_BY_CODE: dict[ErrorCode, int] = {
     ErrorCode.APPLICATION_NOT_FOUND: status.HTTP_404_NOT_FOUND,
     ErrorCode.APPLICATION_PROJECT_MISMATCH: status.HTTP_422_UNPROCESSABLE_CONTENT,
     ErrorCode.INVALID_DATE_RANGE: status.HTTP_400_BAD_REQUEST,
+    ErrorCode.BENCHMARK_NOT_FOUND: status.HTTP_404_NOT_FOUND,
     ErrorCode.INTERNAL_ERROR: status.HTTP_500_INTERNAL_SERVER_ERROR,
 }
 
@@ -146,3 +148,8 @@ class ApplicationProjectMismatchError(AppError):
 class InvalidDateRangeError(AppError):
     def __init__(self, message: str = "Invalid date range.") -> None:
         super().__init__(ErrorCode.INVALID_DATE_RANGE, message)
+
+
+class BenchmarkNotFoundError(AppError):
+    def __init__(self, message: str = "Benchmark definition not found.") -> None:
+        super().__init__(ErrorCode.BENCHMARK_NOT_FOUND, message)

@@ -789,12 +789,12 @@ Request: `{benchmark_id, candidates}`, where `candidates` follows the same shape
 
 Where the workload's populated fields support a scientifically defensible denominator, comparison and benchmark results may include a normalized resource-intensity range alongside the raw range:
 
-| Workload quantity present | Denominator basis | Applies when |
-|---|---|---|
-| `input_tokens` / `output_tokens` | `input_plus_output` (sum), per 1,000 tokens | sum > 0 |
-| `image_count` | `image_count`, per image | > 0 |
-| `video_seconds` | `video_seconds`, per second | > 0 |
-| `audio_seconds` | `audio_minutes` (seconds / 60), per minute | > 0 |
+| Workload quantity present | Denominator value | Basis | Applies when |
+|---|---|---|---|
+| `input_tokens` / `output_tokens` | `(input_tokens + output_tokens) / 1000`, per 1,000 tokens | `input_plus_output` | sum > 0 |
+| `image_count` | `image_count`, per image | `image_count` | > 0 |
+| `video_seconds` | `video_seconds`, per second | `video_seconds` | > 0 |
+| `audio_seconds` | `audio_seconds / 60`, per minute | `audio_minutes` | > 0 |
 
 Token-based normalization must never be forced onto a workload without token fields, and no denominator is invented for a workload type with none of the above quantities populated — in that case the normalized value is simply absent (not zero, not an error). The denominator itself (value, unit, and basis) must be exposed alongside the normalized range so it is auditable. A normalized range must carry the same status, confidence, evidence level, methodology version and accounting boundary as its underlying raw estimate, and must itself be expressed as a `min`/`max` range — never averaged into a single point value.
 
