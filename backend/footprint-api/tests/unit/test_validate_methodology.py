@@ -138,6 +138,25 @@ def test_unsupported_activity_type_is_flagged():
     assert any(f.check == "unsupported_activity_type" for f in findings)
 
 
+def test_incompatible_activity_type_and_modality_pair_is_flagged():
+    # image_generation is only valid under modality "image" - this factor
+    # claims modality "text", which is the same class of error CompareRequest
+    # now rejects at request time.
+    factor = _factor(activity_type="image_generation", modality="text")
+
+    findings = _validate(factor)
+
+    assert any(f.check == "activity_modality_incompatible" for f in findings)
+
+
+def test_compatible_activity_type_and_modality_pair_is_not_flagged():
+    factor = _factor(activity_type="image_generation", modality="image")
+
+    findings = _validate(factor)
+
+    assert not any(f.check == "activity_modality_incompatible" for f in findings)
+
+
 def test_invalid_normalization_metadata_is_flagged_for_pre_normalized_unit():
     factor = _factor(unit="Wh/token")
 

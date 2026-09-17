@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
-from app.models.enums import ActivityType, Modality
+from app.models.enums import ActivityType, Modality, validate_activity_type_modality
 from app.schemas.common import ComparisonCandidate, ErrorDetail, NormalizedResourceIntensity
 from app.schemas.estimate import EstimateResponse
 
@@ -42,6 +42,20 @@ class CompareRequest(BaseModel):
 
     candidates: list[ComparisonCandidate] = Field(min_length=2)
 
+    @model_validator(mode="after")
+    def check_activity_matches_modality(self) -> "CompareRequest":
+        """Rejects an incompatible activity_type/modality pair for the
+        shared workload definition at request-validation time (422),
+        reusing WorkloadInput's own validation function rather than a
+        duplicated rule. This must happen here, not per-candidate: a
+        malformed shared workload is a request-level error, not an
+        individual candidate's failure, so it must never surface as
+        HTTP 200 with every candidate independently reporting the same
+        failure.
+        """
+        validate_activity_type_modality(self.activity_type, self.modality)
+        return self
+
 
 class ComparisonResultItem(BaseModel):
     """One candidate's independent outcome, shared by CompareResponse and
@@ -50,8 +64,12 @@ class ComparisonResultItem(BaseModel):
     score/ranking field of any kind (ARCHITECTURE.md ADR-008).
     """
 
-    candidate: ComparisonCandidate
+    candidate: ComparisonCandidate  # as requested - model_version may be None
     status: str  # "success" | "failed"
+    # The actual provider/model/model_version the estimate was computed
+    # for, from EstimateResult - set on success even when the candidate
+    # omitted model_version and ModelResolver resolved an active version.
+    resolved: ComparisonCandidate | None = None
     estimate: EstimateResponse | None = None
     normalized: NormalizedResourceIntensity | None = None
     error: ErrorDetail | None = None

@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.models.enums import ACTIVITY_TYPE_MODALITIES, ActivityType, Modality
+from app.models.enums import ActivityType, Modality, validate_activity_type_modality
 
 
 class WorkloadInput(BaseModel):
@@ -42,12 +42,7 @@ class WorkloadInput(BaseModel):
 
     @model_validator(mode="after")
     def check_activity_matches_modality(self) -> "WorkloadInput":
-        allowed = ACTIVITY_TYPE_MODALITIES.get(self.activity_type)
-        if allowed is not None and self.modality not in allowed:
-            raise ValueError(
-                f"activity_type '{self.activity_type}' is not valid for modality "
-                f"'{self.modality}'"
-            )
+        validate_activity_type_modality(self.activity_type, self.modality)
         return self
 
 

@@ -59,6 +59,22 @@ ACTIVITY_TYPE_MODALITIES: dict[ActivityType, set[Modality]] = {
 }
 
 
+def validate_activity_type_modality(activity_type: ActivityType, modality: Modality) -> None:
+    """The single authoritative activity_type/modality compatibility check.
+
+    Raises ValueError on an incompatible pair. Shared by WorkloadInput
+    (app/schemas/workload.py), CompareRequest (app/schemas/compare.py) and
+    the methodology validator (scripts/validate_methodology.py) so there
+    is exactly one taxonomy compatibility rule in the codebase, never a
+    second copy of it.
+    """
+    allowed = ACTIVITY_TYPE_MODALITIES.get(activity_type)
+    if allowed is not None and modality not in allowed:
+        raise ValueError(
+            f"activity_type '{activity_type}' is not valid for modality '{modality}'"
+        )
+
+
 class ProviderStatus(StrEnum):
     ACTIVE = "active"
     BETA = "beta"

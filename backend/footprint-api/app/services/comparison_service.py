@@ -91,6 +91,11 @@ class ComparisonService:
                 ComparisonResultItem(
                     candidate=candidate,
                     status="success",
+                    resolved=ComparisonCandidate(
+                        provider=result.provider,
+                        model=result.model,
+                        model_version=result.model_version,
+                    ),
                     estimate=estimate,
                     normalized=normalized,
                 )

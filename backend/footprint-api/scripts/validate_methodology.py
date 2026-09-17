@@ -23,7 +23,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.enums import ActivityType, Modality
+from app.models.enums import ActivityType, Modality, validate_activity_type_modality
 from app.models.methodology import Methodology
 from app.models.methodology_factor import MethodologyFactor
 from app.models.model import Model
@@ -177,6 +177,25 @@ def validate_factor(
                 f"modality '{factor.modality}' is not a recognized Modality.",
             )
         )
+
+    # Only check compatibility once both values are individually valid -
+    # ActivityType(...)/Modality(...) would otherwise raise on a value
+    # already reported above. Reuses the single authoritative mapping
+    # (app/models/enums.py) rather than a second taxonomy definition.
+    if factor.activity_type in valid_activity_types and factor.modality in valid_modalities:
+        try:
+            validate_activity_type_modality(
+                ActivityType(factor.activity_type), Modality(factor.modality)
+            )
+        except ValueError:
+            findings.append(
+                Finding(
+                    "activity_modality_incompatible",
+                    entity,
+                    f"activity_type '{factor.activity_type}' is not valid for modality "
+                    f"'{factor.modality}'.",
+                )
+            )
 
     if classify_factor(factor) == "inconsistent":
         findings.append(

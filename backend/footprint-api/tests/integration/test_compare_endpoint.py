@@ -276,3 +276,63 @@ async def test_compare_requires_auth(client):
     response = await client.post("/v1/compare", json=payload)
 
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_compare_resolves_and_exposes_omitted_model_version(
+    client, auth_headers, db_session
+):
+    from tests import factories
+
+    provider = await factories.create_provider(db_session, "openai", modalities=["text"])
+    await factories.create_methodology(db_session)
+    await factories.create_model(
+        db_session, provider_id=provider.id, name="test-only-model", version="v2"
+    )
+    await factories.create_factor(db_session, metric="energy")
+    await factories.create_factor(db_session, metric="water")
+    await factories.create_factor(db_session, metric="carbon")
+    await db_session.commit()
+
+    payload = {
+        **BASE_REQUEST,
+        "candidates": [
+            # model_version omitted - ModelResolver must resolve the
+            # current active version ("v2"), and the response must expose
+            # that resolved identity explicitly rather than echoing back
+            # the omitted request value.
+            {"provider": "openai", "model": "test-only-model"},
+            {"provider": "openai", "model": "test-only-model"},
+        ],
+    }
+
+    response = await client.post("/v1/compare", json=payload, headers=auth_headers)
+
+    assert response.status_code == 200
+    for item in response.json()["results"]:
+        assert item["status"] == "success"
+        assert item["candidate"]["model_version"] is None
+        assert item["resolved"]["provider"] == "openai"
+        assert item["resolved"]["model"] == "test-only-model"
+        assert item["resolved"]["model_version"] == "v2"
+
+
+@pytest.mark.asyncio
+async def test_compare_rejects_incompatible_activity_type_and_modality(client, auth_headers):
+    payload = {
+        "modality": "text",
+        "activity_type": "image_generation",
+        "input_tokens": 500,
+        "output_tokens": 500,
+        "candidates": [
+            {"provider": "openai", "model": "test-only-model"},
+            {"provider": "openai", "model": "test-only-model"},
+        ],
+    }
+
+    response = await client.post("/v1/compare", json=payload, headers=auth_headers)
+
+    # A malformed shared workload is a request-level 422, never a 200
+    # with every candidate independently reporting the same failure.
+    assert response.status_code == 422
+    assert "results" not in response.json()
