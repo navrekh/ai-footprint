@@ -3,6 +3,20 @@ from app.methodology.dto import MetricEstimate
 from app.models.enums import MetricStatus
 
 
+def determine_metric_status(total: int, measured: int) -> MetricStatus:
+    """The shared ok/partial/insufficient_data decision used everywhere a
+    metric is aggregated across multiple workloads (batch estimation,
+    usage intelligence): no measured value at all -> insufficient_data;
+    every workload measured -> ok; anything in between -> partial. A
+    partial aggregate must never be indistinguishable from a complete one.
+    """
+    if measured == 0:
+        return MetricStatus.INSUFFICIENT_DATA
+    if measured == total:
+        return MetricStatus.OK
+    return MetricStatus.PARTIAL
+
+
 class UncertaintyEngine:
     """Propagates/aggregates uncertainty ranges for a metric.
 
@@ -36,15 +50,14 @@ class UncertaintyEngine:
         available = [e for e in estimates if e.status == MetricStatus.OK]
         measured = len(available)
 
-        if measured == 0:
+        status = determine_metric_status(total, measured)
+        if status == MetricStatus.INSUFFICIENT_DATA:
             return MetricEstimate(
-                status=MetricStatus.INSUFFICIENT_DATA,
+                status=status,
                 unit=unit,
                 total_workloads=total,
                 measured_workloads=0,
             )
-
-        status = MetricStatus.OK if measured == total else MetricStatus.PARTIAL
 
         confidences = [e.confidence for e in available if e.confidence]
         evidence_levels = [e.evidence_level for e in available if e.evidence_level is not None]
