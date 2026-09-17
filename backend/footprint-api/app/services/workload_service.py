@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import InvalidWorkloadError
@@ -7,6 +8,8 @@ from app.methodology.pipeline import EstimationPipeline
 from app.models.estimate import Estimate
 from app.models.workload import AIWorkload
 from app.schemas.workload import EventCreateRequest
+
+_IDEMPOTENCY_CONSTRAINT_NAME = "uq_workload_project_idempotency_key"
 
 
 class WorkloadService:
@@ -17,6 +20,15 @@ class WorkloadService:
     one commit. If anything before the commit raises, nothing is
     persisted - there is no path that leaves a workload row without its
     estimate, or vice versa.
+
+    Concurrent idempotency-key inserts (sprint 2 follow-up review, item 2):
+    the pre-insert lookup is a convenience, not the authority - two
+    requests can both pass it before either commits. The database unique
+    constraint on (project_id, idempotency_key) is the actual authority;
+    if the workload insert violates it, the transaction is rolled back
+    and the now-visible winning row (and its estimate) is returned as an
+    idempotent replay instead of surfacing a 500. Any other integrity
+    error is re-raised unchanged.
 
     If the provider/model cannot be resolved at all, nothing is
     persisted and the underlying AppError propagates. If the provider and
@@ -72,8 +84,19 @@ class WorkloadService:
             idempotency_key=payload.idempotency_key,
             workload_metadata=payload.metadata,
         )
-        self._db.add(workload)
-        await self._db.flush()
+        try:
+            self._db.add(workload)
+            await self._db.flush()
+        except IntegrityError as exc:
+            await self._db.rollback()
+            if payload.idempotency_key and self._is_idempotency_key_conflict(exc):
+                existing = await self._find_existing_by_idempotency_key(
+                    project_id, payload.idempotency_key
+                )
+                if existing is not None:
+                    winning_workload, winning_estimate = existing
+                    return winning_workload, winning_estimate, True
+            raise
 
         estimate = Estimate(
             workload_id=workload.id,
@@ -100,6 +123,15 @@ class WorkloadService:
         await self._db.refresh(workload)
         await self._db.refresh(estimate)
         return workload, estimate, False
+
+    @staticmethod
+    def _is_idempotency_key_conflict(exc: IntegrityError) -> bool:
+        """True only for a violation of the idempotency unique constraint
+        specifically - never a generic "some IntegrityError happened", so
+        an unrelated constraint violation is never mistaken for a
+        successful idempotent replay.
+        """
+        return _IDEMPOTENCY_CONSTRAINT_NAME in str(exc.orig)
 
     async def _find_existing_by_idempotency_key(
         self, project_id: str, idempotency_key: str
