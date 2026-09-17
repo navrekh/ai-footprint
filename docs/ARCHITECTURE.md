@@ -390,6 +390,24 @@ Chosen to isolate provider-specific interfaces from the core engine.
 ### ADR-005: Modular monolith for MVP
 Chosen to maximize development speed while preserving future decomposition boundaries.
 
+### ADR-006: Static/versioned benchmark definitions instead of a database table
+Benchmark definitions describe fixed workload shapes, not environmental data, and change rarely. A static, versioned Python module reuses the existing taxonomy directly, requires no migration, and avoids building CRUD/admin surface for a small, curated set of definitions. A database-backed registry can be introduced later if benchmarks need to be managed without a deploy.
+
+### ADR-007: Comparison and benchmark execution are stateless
+Neither reads nor writes tenant-owned data, so neither can regress organization/project isolation. Results are computed on demand from the same registries `/v1/estimate` already reads. Persistence is deferred until a concrete requirement (e.g. historical comparison tracking) is demonstrated, per the "prefer stateless execution" principle.
+
+### ADR-008: Comparison candidates are never ranked
+Declaring a provider/model "best," "cheapest," or "recommended" would assert a value judgment and a precision the methodology does not support, and would conflict with provider neutrality. The API exposes comparable measurements only; the schema itself carries no ranking/score field, structurally preventing this rather than relying on a convention.
+
+### ADR-009: Methodology data is never fabricated
+No production environmental factor is added without an authoritative source, documented provenance, an assigned methodology version, an evidence level and explicit approval. Absent that, the pipeline returns `insufficient_data`. This applies identically to comparison, benchmarking and normalization - none of them are permitted to invent a coefficient merely to produce a non-empty response.
+
+### ADR-010: Normalization denominators are explicit and workload-derived
+Per-token, per-image, per-second and per-minute denominators are computed from the requested workload's own populated quantity fields, never inferred or defaulted for a workload type that lacks the relevant field. The basis (e.g. `input_plus_output`) is always returned alongside the normalized value so the calculation is auditable rather than implicit.
+
+### ADR-011: Methodology validation is separate from runtime estimation
+`scripts/validate_methodology.py` is read-only, advisory tooling for data governance (referential integrity, ranges, provenance completeness, TEST_ONLY-vs-production classification). It never runs at request time, never alters data, and never re-implements factor resolution - `EstimationPipeline`/`FactorRepository` remain the sole runtime authority, so there is exactly one estimation path.
+
 ## 24. Future Decomposition
 
 Only after scale requires it, services may be separated into:

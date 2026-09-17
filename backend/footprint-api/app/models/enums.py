@@ -59,6 +59,22 @@ ACTIVITY_TYPE_MODALITIES: dict[ActivityType, set[Modality]] = {
 }
 
 
+def validate_activity_type_modality(activity_type: ActivityType, modality: Modality) -> None:
+    """The single authoritative activity_type/modality compatibility check.
+
+    Raises ValueError on an incompatible pair. Shared by WorkloadInput
+    (app/schemas/workload.py), CompareRequest (app/schemas/compare.py) and
+    the methodology validator (scripts/validate_methodology.py) so there
+    is exactly one taxonomy compatibility rule in the codebase, never a
+    second copy of it.
+    """
+    allowed = ACTIVITY_TYPE_MODALITIES.get(activity_type)
+    if allowed is not None and modality not in allowed:
+        raise ValueError(
+            f"activity_type '{activity_type}' is not valid for modality '{modality}'"
+        )
+
+
 class ProviderStatus(StrEnum):
     ACTIVE = "active"
     BETA = "beta"
@@ -148,4 +164,17 @@ class UsageGranularity(StrEnum):
     DAY = "day"
     WEEK = "week"
     MONTH = "month"
+
+
+class NormalizationBasis(StrEnum):
+    """The workload quantity a normalized resource-intensity range was
+    divided by (docs/METHODOLOGY.md section 25). Always returned alongside
+    a normalized value so the calculation is auditable rather than
+    implicit.
+    """
+
+    INPUT_PLUS_OUTPUT = "input_plus_output"
+    IMAGE_COUNT = "image_count"
+    VIDEO_SECONDS = "video_seconds"
+    AUDIO_MINUTES = "audio_minutes"
 

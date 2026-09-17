@@ -384,7 +384,48 @@ Usage APIs should accept explicit date ranges and use PostgreSQL aggregation ini
 - Consumer mobile application
 - Application-scoped API keys
 
-## 17. Out of MVP / Deferred
+## 17. Sprint 4 — AI Resource Intelligence
+
+The product-level capability introduced in Sprint 4 is **AI Resource Intelligence**: provider-neutral understanding and comparison of the resource intensity of AI workloads. Comparison and benchmarking are features of that capability, not the capability itself.
+
+This evolves the platform's framing from "an AI workload footprint estimation API" toward "provider-neutral AI resource intelligence for understanding and comparing the resource intensity of AI workloads," while every existing product principle (provider neutrality, workload-centricity, methodology-driven estimation, range-based uncertainty, confidence-awareness, no fabricated factors, no false precision) remains mandatory and unchanged.
+
+### In scope
+
+1. Workload comparison across multiple provider/model candidates for one workload definition (`POST /v1/compare`).
+2. Standardized, deterministic, versioned benchmark definitions aligned to the existing workload taxonomy (`GET /v1/benchmarks`, `GET /v1/benchmarks/{id}`, `POST /v1/benchmarks/run`).
+3. Normalized resource intensity (e.g. per 1K tokens, per image, per second, per minute) as presentation-layer arithmetic over an existing approved estimate, with explicit, auditable denominator semantics.
+4. A methodology-data governance and validation mechanism so the platform can safely accept authoritative methodology data in the future, without weakening the "never fabricate" principle now.
+
+### Comparison semantics
+
+Comparison evaluates one workload definition against multiple provider/model candidates. Each candidate is estimated **independently** through the existing estimation engine. Every candidate retains its own range, status, confidence, evidence level, accounting boundary, methodology version, assumptions and provenance. Candidates are never aggregated, averaged, or collapsed into a single figure, and the API never declares a candidate a winner, loser, "best," "cheapest," or "recommended" model. The API provides comparable measurements; the caller makes the decision.
+
+### Benchmark semantics
+
+A benchmark is a deterministic, versioned, named workload definition expressed entirely in terms of the existing workload taxonomy (activity type, modality, and the same optional quantity fields used elsewhere). Benchmark execution reuses the same estimation and comparison mechanism as ad hoc comparison — it does not introduce a second estimation path. A benchmark may legitimately return `insufficient_data` when no approved methodology factor exists; this is expected, correct behavior, not a defect to work around by inventing a coefficient.
+
+### Normalization semantics
+
+Where a scientifically defensible denominator exists for a workload's populated quantity fields (tokens for text, image count for image, seconds for video, minutes for audio), the platform may expose a normalized resource-intensity range alongside the raw range. Token normalization is never forced onto non-token workloads, and no denominator is invented for a workload type that lacks one. Every normalized value preserves the underlying estimate's status, confidence, methodology version, and provenance, and is itself expressed as a min/max range — never averaged into a single point value.
+
+### Methodology governance
+
+Sprint 4 does not add real provider/model environmental factors. Production methodology data continues to require an authoritative source, documented provenance, an assigned methodology version, an evidence level, and explicit production approval before it is used at runtime. Where that data does not yet exist, the platform continues to report `insufficient_data` rather than a fabricated or internet-sourced estimate. A read-only validation tool checks methodology data for structural completeness and correctly distinguishes production-approved data from `TEST_ONLY` fixture data, but this tool is advisory — it does not grant approval and does not alter runtime behavior.
+
+### Security model
+
+`POST /v1/compare` and `POST /v1/benchmarks/run` require a valid API key but perform no tenant-scoped reads or writes: nothing organization- or project-owned is read, written, or returned. `GET /v1/benchmarks` and `GET /v1/benchmarks/{id}` are public reference-data endpoints, consistent with the existing provider/model/methodology registries. No change is made to organization isolation, project isolation, or API-key scope enforcement established in Sprint 2/3.
+
+### Explicit non-goals for Sprint 4
+
+- No ranking, scoring, or recommendation engine of any kind.
+- No persistent comparison or benchmark-result storage.
+- No frontend, dashboard, mobile application, SDKs, or live provider API integrations.
+- No billing, Stripe, RBAC/SSO, AWS deployment, Redis, Kafka, or data warehouse.
+- No fabricated or internet-sourced production environmental factors for any provider.
+
+## 18. Out of MVP / Deferred
 
 The following do not block the developer-platform MVP:
 
@@ -400,7 +441,7 @@ The following do not block the developer-platform MVP:
 - real-time data-center telemetry
 - full analytics warehouse
 
-## 18. MVP Release Criteria
+## 19. MVP Release Criteria
 
 1. Developer registration works.
 2. API keys can be created and revoked.
