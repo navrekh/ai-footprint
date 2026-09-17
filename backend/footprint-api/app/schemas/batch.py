@@ -16,10 +16,24 @@ class BatchItemResult(BaseModel):
     error: ErrorDetail | None = None
 
 
+class AggregateMetricRange(MetricRange):
+    """A batch-aggregated metric range that exposes completeness.
+
+    status is "ok" only when every successfully-estimated workload in the
+    batch contributed a measured value for this metric; "partial" when
+    some did and some did not (min/max sum only the measured ones); and
+    "insufficient_data" when none did. A partial aggregate must never be
+    indistinguishable from a complete one (sprint review, item 3).
+    """
+
+    total_workloads: int
+    measured_workloads: int
+
+
 class AggregateImpact(BaseModel):
-    energy: MetricRange
-    water: MetricRange
-    carbon: MetricRange
+    energy: AggregateMetricRange
+    water: AggregateMetricRange
+    carbon: AggregateMetricRange
 
 
 class BatchEstimateResponse(BaseModel):

@@ -108,5 +108,6 @@ class AccountingBoundary(StrEnum):
 
 class MetricStatus(StrEnum):
     OK = "ok"
+    PARTIAL = "partial"
     INSUFFICIENT_DATA = "insufficient_data"
 

@@ -15,6 +15,10 @@ class MetricEstimate:
     factor_id: str | None = None
     assumptions: list[str] = field(default_factory=list)
     limitations: list[str] = field(default_factory=list)
+    # Completeness bookkeeping, populated by UncertaintyEngine.aggregate().
+    # For a single (non-aggregated) workload these are always 1/1 or 1/0.
+    total_workloads: int = 1
+    measured_workloads: int = 0
 
 
 @dataclass
