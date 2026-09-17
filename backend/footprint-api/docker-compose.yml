@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: footprint
+      POSTGRES_PASSWORD: footprint
+      POSTGRES_DB: footprint
+    ports:
+      - "5432:5432"
+    volumes:
+      - footprint_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U footprint -d footprint"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://footprint:footprint@postgres:5432/footprint
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+      API_KEY_PREFIX: afp_dev
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  footprint_postgres_data:
