@@ -2,7 +2,7 @@ from datetime import datetime
 from functools import partial
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, utcnow
@@ -22,6 +22,12 @@ class AIWorkload(Base):
     """
 
     __tablename__ = "ai_workloads"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "idempotency_key", name="uq_workload_project_idempotency_key"
+        ),
+        Index("ix_ai_workloads_project_created", "project_id", "created_at"),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=partial(new_id, "evt"))
     organization_id: Mapped[str] = mapped_column(
@@ -31,16 +37,19 @@ class AIWorkload(Base):
         String(64), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
-    provider: Mapped[str] = mapped_column(String(64), nullable=False)
-    model: Mapped[str] = mapped_column(String(255), nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    model: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    model_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
     modality: Mapped[str] = mapped_column(String(16), nullable=False)
-    activity_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    activity_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
 
     input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    input_characters: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_characters: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     image_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     image_width: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -53,15 +62,17 @@ class AIWorkload(Base):
 
     tool_calls: Mapped[int | None] = mapped_column(Integer, nullable=True)
     duration_seconds: Mapped[float | None] = mapped_column(nullable=True)
+    duration_ms: Mapped[float | None] = mapped_column(nullable=True)
 
     parent_workload_id: Mapped[str | None] = mapped_column(
         String(64), ForeignKey("ai_workloads.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
+    idempotency_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
     workload_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, nullable=False
+        DateTime(timezone=True), default=utcnow, nullable=False, index=True
     )
 
     organization: Mapped["Organization"] = relationship()

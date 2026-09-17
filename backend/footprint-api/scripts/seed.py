@@ -19,6 +19,7 @@ from datetime import date
 
 from sqlalchemy import select
 
+from app.core.slugs import slugify
 from app.db.database import AsyncSessionLocal
 from app.models.api_key import ApiKey
 from app.models.methodology import Methodology
@@ -77,7 +78,7 @@ async def seed_demo_org_project_and_key(session) -> None:
         await session.execute(select(Organization).where(Organization.name == DEMO_ORG_NAME))
     ).scalar_one_or_none()
     if org is None:
-        org = Organization(name=DEMO_ORG_NAME)
+        org = Organization(name=DEMO_ORG_NAME, slug=slugify(DEMO_ORG_NAME, fallback="org"))
         session.add(org)
         await session.commit()
         await session.refresh(org)
@@ -93,7 +94,11 @@ async def seed_demo_org_project_and_key(session) -> None:
         )
     ).scalar_one_or_none()
     if project is None:
-        project = Project(organization_id=org.id, name=DEMO_PROJECT_NAME)
+        project = Project(
+            organization_id=org.id,
+            name=DEMO_PROJECT_NAME,
+            slug=slugify(DEMO_PROJECT_NAME, fallback="project"),
+        )
         session.add(project)
         await session.commit()
         await session.refresh(project)
@@ -113,9 +118,11 @@ async def seed_demo_org_project_and_key(session) -> None:
         )
         return
 
-    created = await ApiKeyService(session).create(project_id=project.id, name=DEMO_KEY_NAME)
+    created = await ApiKeyService(session).create(
+        organization_id=org.id, project_id=project.id, name=DEMO_KEY_NAME
+    )
     print("Created API key - save this now, it will not be shown again:")
-    print(f"  {created.raw_key}")
+    print(f"  {created.key}")
 
 
 async def seed_test_only_demo_data(session) -> None:

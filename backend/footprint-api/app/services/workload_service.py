@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import InvalidWorkloadError
@@ -8,9 +9,26 @@ from app.models.estimate import Estimate
 from app.models.workload import AIWorkload
 from app.schemas.workload import EventCreateRequest
 
+_IDEMPOTENCY_CONSTRAINT_NAME = "uq_workload_project_idempotency_key"
+
 
 class WorkloadService:
     """Backs POST /v1/events: persists the AIWorkload and its Estimate.
+
+    Transaction boundary (sprint 2 review, item 18): validate -> resolve
+    provider/model/methodology -> create workload -> create estimate ->
+    one commit. If anything before the commit raises, nothing is
+    persisted - there is no path that leaves a workload row without its
+    estimate, or vice versa.
+
+    Concurrent idempotency-key inserts (sprint 2 follow-up review, item 2):
+    the pre-insert lookup is a convenience, not the authority - two
+    requests can both pass it before either commits. The database unique
+    constraint on (project_id, idempotency_key) is the actual authority;
+    if the workload insert violates it, the transaction is rolled back
+    and the now-visible winning row (and its estimate) is returned as an
+    idempotent replay instead of surfacing a 500. Any other integrity
+    error is re-raised unchanged.
 
     If the provider/model cannot be resolved at all, nothing is
     persisted and the underlying AppError propagates. If the provider and
@@ -25,7 +43,16 @@ class WorkloadService:
 
     async def create_event(
         self, *, organization_id: str, project_id: str, payload: EventCreateRequest
-    ) -> tuple[AIWorkload, Estimate]:
+    ) -> tuple[AIWorkload, Estimate, bool]:
+        """Returns (workload, estimate, is_idempotent_replay)."""
+        if payload.idempotency_key:
+            existing = await self._find_existing_by_idempotency_key(
+                project_id, payload.idempotency_key
+            )
+            if existing is not None:
+                workload, estimate = existing
+                return workload, estimate, True
+
         if payload.parent_workload_id:
             await self._ensure_parent_in_organization(payload.parent_workload_id, organization_id)
 
@@ -34,13 +61,16 @@ class WorkloadService:
         workload = AIWorkload(
             organization_id=organization_id,
             project_id=project_id,
-            provider=payload.provider.strip().lower(),
-            model=payload.model,
+            provider=result.provider,
+            model=result.model,
+            model_version=result.model_version,
             modality=payload.modality.value,
             activity_type=payload.activity_type.value,
             timestamp=payload.timestamp or utcnow(),
             input_tokens=payload.input_tokens,
             output_tokens=payload.output_tokens,
+            input_characters=payload.input_characters,
+            output_characters=payload.output_characters,
             image_count=payload.image_count,
             image_width=payload.image_width,
             image_height=payload.image_height,
@@ -49,14 +79,30 @@ class WorkloadService:
             audio_seconds=payload.audio_seconds,
             tool_calls=payload.tool_calls,
             duration_seconds=payload.duration_seconds,
+            duration_ms=payload.duration_ms,
             parent_workload_id=payload.parent_workload_id,
+            idempotency_key=payload.idempotency_key,
             workload_metadata=payload.metadata,
         )
-        self._db.add(workload)
-        await self._db.flush()
+        try:
+            self._db.add(workload)
+            await self._db.flush()
+        except IntegrityError as exc:
+            await self._db.rollback()
+            if payload.idempotency_key and self._is_idempotency_key_conflict(exc):
+                existing = await self._find_existing_by_idempotency_key(
+                    project_id, payload.idempotency_key
+                )
+                if existing is not None:
+                    winning_workload, winning_estimate = existing
+                    return winning_workload, winning_estimate, True
+            raise
 
         estimate = Estimate(
             workload_id=workload.id,
+            provider=result.provider,
+            model=result.model,
+            model_version=result.model_version,
             energy_status=result.energy.status.value,
             energy_min_wh=result.energy.min,
             energy_max_wh=result.energy.max,
@@ -76,6 +122,35 @@ class WorkloadService:
         await self._db.commit()
         await self._db.refresh(workload)
         await self._db.refresh(estimate)
+        return workload, estimate, False
+
+    @staticmethod
+    def _is_idempotency_key_conflict(exc: IntegrityError) -> bool:
+        """True only for a violation of the idempotency unique constraint
+        specifically - never a generic "some IntegrityError happened", so
+        an unrelated constraint violation is never mistaken for a
+        successful idempotent replay.
+        """
+        return _IDEMPOTENCY_CONSTRAINT_NAME in str(exc.orig)
+
+    async def _find_existing_by_idempotency_key(
+        self, project_id: str, idempotency_key: str
+    ) -> tuple[AIWorkload, Estimate] | None:
+        workload = (
+            await self._db.execute(
+                select(AIWorkload).where(
+                    AIWorkload.project_id == project_id,
+                    AIWorkload.idempotency_key == idempotency_key,
+                )
+            )
+        ).scalar_one_or_none()
+        if workload is None:
+            return None
+        estimate = (
+            await self._db.execute(select(Estimate).where(Estimate.workload_id == workload.id))
+        ).scalar_one_or_none()
+        if estimate is None:
+            return None
         return workload, estimate
 
     async def _ensure_parent_in_organization(self, parent_id: str, organization_id: str) -> None:

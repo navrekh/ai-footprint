@@ -10,17 +10,31 @@ from app.models.enums import ApiKeyStatus
 from app.models.ids import new_id
 
 if TYPE_CHECKING:
+    from app.models.organization import Organization
     from app.models.project import Project
 
 
 class ApiKey(Base):
+    """An API key belongs to exactly one organization and, optionally, to
+    one project within it.
+
+    A project-scoped key (project_id set) behaves exactly as in Sprint 1:
+    it authenticates requests against that one project. An org-level key
+    (project_id is None) exists to bootstrap and manage an organization's
+    projects/keys before any project-scoped key exists for a given
+    project - see README "Architecture notes" for the full rationale.
+    """
+
     __tablename__ = "api_keys"
 
     id: Mapped[str] = mapped_column(
         String(64), primary_key=True, default=partial(new_id, "key")
     )
-    project_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    organization_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    project_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True
     )
     key_hash: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, index=True)
     key_prefix: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
@@ -31,7 +45,9 @@ class ApiKey(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    project: Mapped["Project"] = relationship(back_populates="api_keys")
+    organization: Mapped["Organization"] = relationship()
+    project: Mapped["Project | None"] = relationship(back_populates="api_keys")

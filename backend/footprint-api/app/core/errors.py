@@ -6,6 +6,7 @@ from starlette import status
 class ErrorCode(StrEnum):
     INVALID_REQUEST = "INVALID_REQUEST"
     INVALID_API_KEY = "INVALID_API_KEY"
+    API_KEY_EXPIRED = "API_KEY_EXPIRED"
     UNAUTHORIZED = "UNAUTHORIZED"
     FORBIDDEN = "FORBIDDEN"
     PROVIDER_NOT_FOUND = "PROVIDER_NOT_FOUND"
@@ -22,6 +23,7 @@ class ErrorCode(StrEnum):
 _STATUS_BY_CODE: dict[ErrorCode, int] = {
     ErrorCode.INVALID_REQUEST: status.HTTP_400_BAD_REQUEST,
     ErrorCode.INVALID_API_KEY: status.HTTP_401_UNAUTHORIZED,
+    ErrorCode.API_KEY_EXPIRED: status.HTTP_401_UNAUTHORIZED,
     ErrorCode.UNAUTHORIZED: status.HTTP_401_UNAUTHORIZED,
     ErrorCode.FORBIDDEN: status.HTTP_403_FORBIDDEN,
     ErrorCode.PROVIDER_NOT_FOUND: status.HTTP_404_NOT_FOUND,
@@ -66,6 +68,11 @@ class InvalidWorkloadError(AppError):
 class InvalidApiKeyError(AppError):
     def __init__(self, message: str = "The provided API key is invalid or revoked.") -> None:
         super().__init__(ErrorCode.INVALID_API_KEY, message)
+
+
+class ApiKeyExpiredError(AppError):
+    def __init__(self, message: str = "The provided API key has expired.") -> None:
+        super().__init__(ErrorCode.API_KEY_EXPIRED, message)
 
 
 class UnauthorizedError(AppError):

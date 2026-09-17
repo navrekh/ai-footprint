@@ -76,6 +76,27 @@ class ApiKeyStatus(StrEnum):
     REVOKED = "revoked"
 
 
+class OrganizationStatus(StrEnum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+
+
+class ProjectStatus(StrEnum):
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+
+
+class EventMeasurementStatus(StrEnum):
+    """Overall completeness of a persisted event's estimate, derived from
+    its per-metric statuses (never itself stored - see
+    workload_service.compute_event_status).
+    """
+
+    MEASURED = "measured"
+    PARTIAL = "partial"
+    INSUFFICIENT_DATA = "insufficient_data"
+
+
 class Metric(StrEnum):
     ENERGY = "energy"
     WATER = "water"

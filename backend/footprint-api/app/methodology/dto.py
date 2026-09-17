@@ -31,3 +31,9 @@ class EstimateResult:
     accounting_boundary: str | None
     methodology_version: str | None
     assumptions: list[str]
+    # The canonical resolved provider/model/version actually used for this
+    # calculation (may differ cosmetically from the raw request, e.g.
+    # provider id normalization) - persisted onto Estimate for provenance.
+    provider: str
+    model: str
+    model_version: str | None = None
