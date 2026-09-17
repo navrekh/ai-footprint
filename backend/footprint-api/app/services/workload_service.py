@@ -56,7 +56,9 @@ class WorkloadService:
                 return workload, estimate, True
 
         if payload.parent_workload_id:
-            await self._ensure_parent_in_organization(payload.parent_workload_id, organization_id)
+            await self._ensure_parent_in_project(
+                payload.parent_workload_id, organization_id, project_id
+            )
 
         if payload.application_id:
             await ApplicationService(self._db).resolve_for_workload(
@@ -161,10 +163,26 @@ class WorkloadService:
             return None
         return workload, estimate
 
-    async def _ensure_parent_in_organization(self, parent_id: str, organization_id: str) -> None:
+    async def _ensure_parent_in_project(
+        self, parent_id: str, organization_id: str, project_id: str
+    ) -> None:
+        """A parent workload must belong to the caller's own project.
+
+        Checked in addition to organization_id (sprint 3 P0 fix): a
+        project-scoped key must never be able to reference - and thereby
+        confirm the existence of, or link lineage into - a workload
+        belonging to a sibling project in the same organization. Kept as
+        one opaque error (not a distinct "mismatch" code) since, unlike
+        application_id, parent_workload_id has no legitimate cross-project
+        use case for a project-scoped key to be told about explicitly.
+        """
         result = await self._db.execute(select(AIWorkload).where(AIWorkload.id == parent_id))
         parent = result.scalar_one_or_none()
-        if parent is None or parent.organization_id != organization_id:
+        if (
+            parent is None
+            or parent.organization_id != organization_id
+            or parent.project_id != project_id
+        ):
             raise InvalidWorkloadError(
-                "parent_workload_id does not reference a workload in this organization."
+                "parent_workload_id does not reference a workload in this project."
             )
