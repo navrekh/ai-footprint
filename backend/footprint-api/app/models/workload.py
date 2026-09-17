@@ -9,6 +9,7 @@ from app.db.base import Base, utcnow
 from app.models.ids import new_id
 
 if TYPE_CHECKING:
+    from app.models.application import Application
     from app.models.organization import Organization
     from app.models.project import Project
 
@@ -35,6 +36,9 @@ class AIWorkload(Base):
     )
     project_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    application_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("applications.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     provider: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
@@ -77,6 +81,7 @@ class AIWorkload(Base):
 
     organization: Mapped["Organization"] = relationship()
     project: Mapped["Project"] = relationship()
+    application: Mapped["Application | None"] = relationship()
     children: Mapped[list["AIWorkload"]] = relationship(
         back_populates="parent", cascade="all, delete-orphan"
     )

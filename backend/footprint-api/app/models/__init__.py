@@ -1,5 +1,6 @@
 from app.db.base import Base
 from app.models.api_key import ApiKey
+from app.models.application import Application
 from app.models.estimate import Estimate
 from app.models.methodology import Methodology
 from app.models.methodology_factor import MethodologyFactor
@@ -13,6 +14,7 @@ __all__ = [
     "Base",
     "Organization",
     "Project",
+    "Application",
     "ApiKey",
     "Provider",
     "Model",

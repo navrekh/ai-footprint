@@ -61,6 +61,13 @@ class EventCreateRequest(WorkloadInput):
             "key; optional (and must match the key's own project) for a project-scoped key."
         ),
     )
+    application_id: str | None = Field(
+        default=None,
+        description=(
+            "Optional application within the target project. Must belong to the same "
+            "project the event is being persisted under."
+        ),
+    )
     idempotency_key: str | None = Field(
         default=None,
         min_length=1,
@@ -87,6 +94,7 @@ class WorkloadRead(BaseModel):
     id: str
     organization_id: str
     project_id: str
+    application_id: str | None
     provider: str
     model: str
     model_version: str | None
