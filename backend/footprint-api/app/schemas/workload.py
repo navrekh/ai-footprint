@@ -63,6 +63,7 @@ class EventCreateRequest(WorkloadInput):
     )
     idempotency_key: str | None = Field(
         default=None,
+        min_length=1,
         max_length=255,
         description=(
             "Optional client-supplied key. Resubmitting the same idempotency_key for the "

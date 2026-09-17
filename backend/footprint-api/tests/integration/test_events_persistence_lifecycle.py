@@ -90,6 +90,20 @@ async def test_different_idempotency_keys_create_distinct_workloads(
 
 
 @pytest.mark.asyncio
+async def test_empty_idempotency_key_is_rejected(client, auth_headers, wired_model):
+    """Sprint 2 follow-up review: an empty string must not silently
+    bypass idempotency handling (both create_event checks are
+    truthiness-based, so "" would otherwise be stored as a real value
+    and only fail on a second identical request, as an unhandled 500).
+    """
+    response = await client.post(
+        "/v1/events", json={**WORKLOAD, "idempotency_key": ""}, headers=auth_headers
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_org_level_key_must_supply_project_id(client, db_session, wired_model):
     from tests import factories
 

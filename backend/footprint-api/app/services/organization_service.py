@@ -1,8 +1,7 @@
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFoundError
-from app.core.slugs import slugify, with_unique_suffix
+from app.core.slugs import allocate_unique_slug, slugify
 from app.models.organization import Organization
 from app.models.project import Project
 from app.schemas.api_key import ApiKeyCreated
@@ -25,15 +24,27 @@ class OrganizationService:
     async def create_with_bootstrap(
         self, name: str
     ) -> tuple[Organization, Project, ApiKeyCreated]:
-        slug = await self._unique_organization_slug(name)
-        organization = Organization(name=name, slug=slug)
-        self._db.add(organization)
-        await self._db.flush()
+        async def stage_organization(candidate_slug: str) -> Organization:
+            organization = Organization(name=name, slug=candidate_slug)
+            self._db.add(organization)
+            await self._db.flush()
+            return organization
 
+        organization = await allocate_unique_slug(
+            self._db,
+            name=name,
+            fallback="org",
+            constraint_name="ix_organizations_slug",
+            try_insert=stage_organization,
+        )
+
+        # The default project's slug is scoped to this brand-new
+        # organization_id, so it can never collide with another
+        # organization's project - no retry needed here.
         project = Project(
             organization_id=organization.id,
             name=DEFAULT_PROJECT_NAME,
-            slug=slugify(DEFAULT_PROJECT_NAME),
+            slug=slugify(DEFAULT_PROJECT_NAME, fallback="project"),
         )
         self._db.add(project)
         await self._db.flush()
@@ -64,15 +75,3 @@ class OrganizationService:
         if organization is None:
             raise NotFoundError("Organization not found.")
         return organization
-
-    async def _unique_organization_slug(self, name: str) -> str:
-        base = slugify(name, fallback="org")
-        candidate = base
-        for _ in range(5):
-            existing = (
-                await self._db.execute(select(Organization).where(Organization.slug == candidate))
-            ).scalar_one_or_none()
-            if existing is None:
-                return candidate
-            candidate = with_unique_suffix(base)
-        return with_unique_suffix(base)

@@ -22,3 +22,23 @@ def test_with_unique_suffix_differs_from_base():
     suffixed = with_unique_suffix(base)
     assert suffixed != base
     assert suffixed.startswith("my-org-")
+
+
+def test_with_unique_suffix_truncates_to_stay_within_max_length():
+    """Sprint 2 follow-up review: a duplicate name already at the column
+    limit must not overflow it once suffixed.
+    """
+    base = "a" * 255
+
+    suffixed = with_unique_suffix(base, max_length=255)
+
+    assert len(suffixed) <= 255
+    assert "-" in suffixed
+
+
+def test_with_unique_suffix_respects_default_max_length_for_oversized_input():
+    base = "b" * 300
+
+    suffixed = with_unique_suffix(base)
+
+    assert len(suffixed) <= 255

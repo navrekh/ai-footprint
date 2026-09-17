@@ -2,7 +2,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFoundError
-from app.core.slugs import slugify, with_unique_suffix
+from app.core.slugs import allocate_unique_slug
 from app.models.project import Project
 from app.schemas.project import ProjectUpdate
 
@@ -14,11 +14,24 @@ class ProjectService:
     async def create(
         self, organization_id: str, name: str, description: str | None
     ) -> Project:
-        slug = await self._unique_project_slug(organization_id, name)
-        project = Project(
-            organization_id=organization_id, name=name, slug=slug, description=description
+        async def stage_project(candidate_slug: str) -> Project:
+            project = Project(
+                organization_id=organization_id,
+                name=name,
+                slug=candidate_slug,
+                description=description,
+            )
+            self._db.add(project)
+            await self._db.flush()
+            return project
+
+        project = await allocate_unique_slug(
+            self._db,
+            name=name,
+            fallback="project",
+            constraint_name="uq_project_organization_slug",
+            try_insert=stage_project,
         )
-        self._db.add(project)
         await self._db.commit()
         await self._db.refresh(project)
         return project
@@ -68,19 +81,3 @@ class ProjectService:
         await self._db.commit()
         await self._db.refresh(project)
         return project
-
-    async def _unique_project_slug(self, organization_id: str, name: str) -> str:
-        base = slugify(name, fallback="project")
-        candidate = base
-        for _ in range(5):
-            existing = (
-                await self._db.execute(
-                    select(Project).where(
-                        Project.organization_id == organization_id, Project.slug == candidate
-                    )
-                )
-            ).scalar_one_or_none()
-            if existing is None:
-                return candidate
-            candidate = with_unique_suffix(base)
-        return with_unique_suffix(base)
