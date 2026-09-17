@@ -4,6 +4,8 @@ from app.api.routes import (
     api_keys,
     applications,
     batch,
+    benchmarks,
+    compare,
     estimate,
     estimates,
     events,
@@ -34,6 +36,8 @@ v1_router.include_router(usage.router)
 v1_router.include_router(providers.router)
 v1_router.include_router(models.router)
 v1_router.include_router(methodology.router)
+v1_router.include_router(compare.router)
+v1_router.include_router(benchmarks.router)
 
 api_router.include_router(v1_router)
 
