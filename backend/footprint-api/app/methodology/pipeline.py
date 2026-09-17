@@ -110,4 +110,7 @@ class EstimationPipeline:
             accounting_boundary=accounting_boundary,
             methodology_version=methodology.version if methodology else None,
             assumptions=assumptions,
+            provider=provider.id,
+            model=model.name,
+            model_version=model.version,
         )
