@@ -3,20 +3,19 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { ConsoleLayout } from "@/layouts/ConsoleLayout";
+import { ApiExplorerPage } from "@/pages/ApiExplorerPage";
 import { ApiKeysPage } from "@/pages/ApiKeysPage";
 import { ApplicationsPage } from "@/pages/ApplicationsPage";
+import { BenchmarkDetailPage } from "@/pages/BenchmarkDetailPage";
+import { BenchmarksPage } from "@/pages/BenchmarksPage";
+import { ComparePage } from "@/pages/ComparePage";
 import { ConnectPage } from "@/pages/ConnectPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProjectDetailPage } from "@/pages/ProjectDetailPage";
 import { ProjectsPage } from "@/pages/ProjectsPage";
-import {
-  ApiExplorerPage,
-  BenchmarksPage,
-  ComparePage,
-  DocumentationPage,
-  UsagePage,
-} from "@/pages/placeholders";
+import { UsagePage } from "@/pages/UsagePage";
+import { DocumentationPage } from "@/pages/placeholders";
 import { useSession } from "@/hooks/useSession";
 import { ApiError } from "@/lib/errors/apiError";
 import { clearSession } from "@/lib/auth/session";
@@ -60,6 +59,7 @@ function ConsoleRoutes() {
         <Route path="/usage" element={<UsagePage />} />
         <Route path="/compare" element={<ComparePage />} />
         <Route path="/benchmarks" element={<BenchmarksPage />} />
+        <Route path="/benchmarks/:benchmarkId" element={<BenchmarkDetailPage />} />
         <Route path="/api-explorer" element={<ApiExplorerPage />} />
         <Route path="/docs" element={<DocumentationPage />} />
         <Route path="*" element={<NotFoundPage />} />

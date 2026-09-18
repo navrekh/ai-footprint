@@ -152,12 +152,13 @@ export function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent activity</CardTitle>
+          <CardTitle>Explore your resource intelligence</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            No workload data yet. Workload and estimate views arrive with the Usage section; this
-            console never displays activity that did not come from the API.
+            Understand what your workload looks like — estimated resource ranges, coverage and
+            confidence, sourced directly from the API. This console never fabricates or
+            recommends; it only shows what the backend reports.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild variant="secondary" size="sm">
@@ -165,6 +166,18 @@ export function DashboardPage() {
             </Button>
             <Button asChild variant="secondary" size="sm">
               <Link to="/applications">View applications</Link>
+            </Button>
+            <Button asChild variant="secondary" size="sm">
+              <Link to="/usage">View usage</Link>
+            </Button>
+            <Button asChild variant="secondary" size="sm">
+              <Link to="/compare">Compare workloads</Link>
+            </Button>
+            <Button asChild variant="secondary" size="sm">
+              <Link to="/benchmarks">Browse benchmarks</Link>
+            </Button>
+            <Button asChild variant="secondary" size="sm">
+              <Link to="/api-explorer">Open API Explorer</Link>
             </Button>
           </div>
         </CardContent>
