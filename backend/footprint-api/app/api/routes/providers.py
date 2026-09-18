@@ -13,6 +13,7 @@ router = APIRouter()
     response_model=list[ProviderRead],
     tags=["registry"],
     summary="List registered AI providers",
+    description="Public, no authentication required.",
 )
 async def list_providers(db: AsyncSession = Depends(get_db_session)) -> list[ProviderRead]:
     providers = await ProviderService(db).list_providers()

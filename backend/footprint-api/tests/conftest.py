@@ -9,6 +9,7 @@ os.environ["DATABASE_URL"] = os.environ.get(
 )
 os.environ["ENVIRONMENT"] = "test"
 os.environ["API_KEY_PREFIX"] = "afp_test"
+os.environ["ALLOWED_ORIGINS"] = "https://console.allowed.test"
 
 import pytest
 import pytest_asyncio

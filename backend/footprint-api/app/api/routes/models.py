@@ -13,6 +13,7 @@ router = APIRouter()
     response_model=list[ModelRead],
     tags=["registry"],
     summary="List registered models, filterable by provider/modality/status",
+    description="Public, no authentication required.",
 )
 async def list_models(
     provider: str | None = Query(default=None, description="Filter by provider id"),

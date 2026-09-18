@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_auth_context
 from app.api.dependencies.db import get_db_session
+from app.core.errors import ErrorCode
+from app.core.openapi_docs import AUTH_ERRORS, error_responses
 from app.methodology.event_status import compute_event_status
 from app.schemas.workload import EventCreateRequest, EventCreateResponse
 from app.services.auth_service import AuthContext
@@ -17,6 +19,25 @@ router = APIRouter()
     response_model=EventCreateResponse,
     tags=["estimation"],
     summary="Persist a workload event and its associated estimate",
+    description=(
+        "Persists an `AIWorkload` and creates its `Estimate`. Supports an optional "
+        "`idempotency_key`: resubmitting the same key for the same project returns the "
+        "original `workload_id`/`estimate_id` (`idempotent_replay: true`) instead of "
+        "creating a duplicate measurement. `application_id`, when supplied, must belong to "
+        "the same project the event is persisted under."
+    ),
+    responses=error_responses(
+        *AUTH_ERRORS,
+        ErrorCode.FORBIDDEN,
+        ErrorCode.MISSING_PARAMETER,
+        ErrorCode.NOT_FOUND,
+        ErrorCode.PROVIDER_NOT_FOUND,
+        ErrorCode.MODEL_NOT_FOUND,
+        ErrorCode.MODEL_NOT_SUPPORTED,
+        ErrorCode.INVALID_WORKLOAD,
+        ErrorCode.APPLICATION_NOT_FOUND,
+        ErrorCode.APPLICATION_PROJECT_MISMATCH,
+    ),
 )
 async def create_event(
     payload: EventCreateRequest,

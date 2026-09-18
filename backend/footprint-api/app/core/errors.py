@@ -4,6 +4,14 @@ from starlette import status
 
 
 class ErrorCode(StrEnum):
+    """The `error.code` value in this API's `{"error": {...}}` error
+    contract. Per-code meanings are documented once, in
+    app/core/openapi_docs.py's CODE_DESCRIPTIONS (surfaced in the
+    generated OpenAPI response examples for every route that can raise
+    each code) and in backend/footprint-api/README.md's "Errors" section
+    - not duplicated here, to avoid the two drifting apart.
+    """
+
     INVALID_REQUEST = "INVALID_REQUEST"
     INVALID_API_KEY = "INVALID_API_KEY"
     API_KEY_EXPIRED = "API_KEY_EXPIRED"
@@ -24,7 +32,7 @@ class ErrorCode(StrEnum):
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
-_STATUS_BY_CODE: dict[ErrorCode, int] = {
+STATUS_BY_CODE: dict[ErrorCode, int] = {
     ErrorCode.INVALID_REQUEST: status.HTTP_400_BAD_REQUEST,
     ErrorCode.INVALID_API_KEY: status.HTTP_401_UNAUTHORIZED,
     ErrorCode.API_KEY_EXPIRED: status.HTTP_401_UNAUTHORIZED,
@@ -52,7 +60,7 @@ class AppError(Exception):
     def __init__(self, code: ErrorCode, message: str, status_code: int | None = None) -> None:
         self.code = code
         self.message = message
-        self.status_code = status_code or _STATUS_BY_CODE.get(
+        self.status_code = status_code or STATUS_BY_CODE.get(
             code, status.HTTP_400_BAD_REQUEST
         )
         super().__init__(message)

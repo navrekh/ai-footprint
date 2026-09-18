@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_auth_context
 from app.api.dependencies.db import get_db_session
+from app.core.errors import ErrorCode
+from app.core.openapi_docs import AUTH_ERRORS, error_responses
 from app.schemas.api_key import (
     ApiKeyCreated,
     ApiKeyCreateRequest,
@@ -21,6 +23,11 @@ router = APIRouter()
     response_model=ApiKeyCreated,
     tags=["api-keys"],
     summary="Create a new API key (organization-level, or scoped to one project)",
+    description=(
+        "Returns the full raw key exactly once, in the `key` field of this response - it is "
+        "never retrievable again afterward. Omit `project_id` for an organization-level key."
+    ),
+    responses=error_responses(*AUTH_ERRORS, ErrorCode.NOT_FOUND),
 )
 async def create_api_key(
     payload: ApiKeyCreateRequest,
@@ -45,6 +52,8 @@ async def create_api_key(
     response_model=ApiKeyListResponse,
     tags=["api-keys"],
     summary="List API keys belonging to the authenticated organization",
+    description="Never returns the raw key or its hash - only the id, prefix and metadata.",
+    responses=error_responses(*AUTH_ERRORS),
 )
 async def list_api_keys(
     limit: int = Query(default=50, ge=1, le=200),
@@ -63,6 +72,8 @@ async def list_api_keys(
     response_model=ApiKeyRead,
     tags=["api-keys"],
     summary="Revoke an API key belonging to the authenticated organization",
+    description="Immediately and irreversibly revokes the key; it can no longer authenticate.",
+    responses=error_responses(*AUTH_ERRORS, ErrorCode.NOT_FOUND),
 )
 async def revoke_api_key(
     api_key_id: str,

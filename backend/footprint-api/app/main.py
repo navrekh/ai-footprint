@@ -3,6 +3,7 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.routes import api_router
@@ -17,12 +18,26 @@ logger = get_logger("app.request")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    version="0.1.0",
+    version="0.3.0",
     description=(
         "AI Footprint estimates the energy, water and carbon impact of AI workloads "
         "as ranges with confidence, evidence level and methodology version - never as "
         "fabricated exact measurements."
     ),
+)
+
+# Developer Console CORS (ADR-012, docs/ADR-012-console-authentication.md):
+# an explicit per-environment origin allowlist, never a wildcard;
+# allow_credentials is False because authentication is a bearer
+# Authorization header, never a cookie, so credentialed CORS is neither
+# required nor desired. Fails closed (no origins allowed) until
+# ALLOWED_ORIGINS is configured.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 

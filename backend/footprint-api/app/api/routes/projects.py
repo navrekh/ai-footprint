@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_auth_context
 from app.api.dependencies.db import get_db_session
+from app.core.errors import ErrorCode
+from app.core.openapi_docs import AUTH_ERRORS, error_responses
 from app.schemas.project import ProjectCreate, ProjectListResponse, ProjectRead, ProjectUpdate
 from app.services.auth_service import AuthContext
 from app.services.project_service import ProjectService
@@ -15,6 +17,8 @@ router = APIRouter()
     response_model=ProjectRead,
     tags=["projects"],
     summary="Create a project in the authenticated organization",
+    description="Creates a new Project owned by the authenticated key's organization.",
+    responses=error_responses(*AUTH_ERRORS),
 )
 async def create_project(
     payload: ProjectCreate,
@@ -32,6 +36,8 @@ async def create_project(
     response_model=ProjectListResponse,
     tags=["projects"],
     summary="List projects belonging to the authenticated organization",
+    description="Limit/offset-paginated list of every project in the authenticated organization.",
+    responses=error_responses(*AUTH_ERRORS),
 )
 async def list_projects(
     limit: int = Query(default=50, ge=1, le=200),
@@ -52,6 +58,8 @@ async def list_projects(
     response_model=ProjectRead,
     tags=["projects"],
     summary="Get a project owned by the authenticated organization",
+    description="Returns one project. 404 if it does not belong to the authenticated organization.",
+    responses=error_responses(*AUTH_ERRORS, ErrorCode.NOT_FOUND),
 )
 async def get_project(
     project_id: str,
@@ -67,6 +75,8 @@ async def get_project(
     response_model=ProjectRead,
     tags=["projects"],
     summary="Update a project owned by the authenticated organization",
+    description="Updates mutable project fields. 404 if the project does not belong to the caller.",
+    responses=error_responses(*AUTH_ERRORS, ErrorCode.NOT_FOUND),
 )
 async def update_project(
     project_id: str,

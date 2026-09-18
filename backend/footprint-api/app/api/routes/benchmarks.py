@@ -4,7 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies.auth import get_auth_context
 from app.api.dependencies.db import get_db_session
 from app.core.config import get_settings
-from app.core.errors import BenchmarkNotFoundError, InvalidRequestError
+from app.core.errors import BenchmarkNotFoundError, ErrorCode, InvalidRequestError
+from app.core.openapi_docs import AUTH_ERRORS, error_responses
 from app.methodology.benchmarks import BenchmarkDefinition, get_benchmark, list_benchmarks
 from app.models.enums import ActivityType, Modality
 from app.schemas.benchmark import (
@@ -36,6 +37,10 @@ def _to_read(definition: BenchmarkDefinition) -> BenchmarkDefinitionRead:
     response_model=BenchmarkListResponse,
     tags=["resource-intelligence"],
     summary="List standardized benchmark workload definitions (public reference data)",
+    description=(
+        "Public, no authentication required - static, versioned, deterministically-ordered "
+        "definitions, consistent with `GET /v1/providers`/`/v1/models`/`/v1/methodology`."
+    ),
 )
 async def list_benchmark_definitions(
     activity_type: ActivityType | None = Query(default=None),
@@ -51,6 +56,8 @@ async def list_benchmark_definitions(
     response_model=BenchmarkDefinitionRead,
     tags=["resource-intelligence"],
     summary="Return one benchmark definition (public reference data)",
+    description="Public, no authentication required.",
+    responses=error_responses(ErrorCode.BENCHMARK_NOT_FOUND),
 )
 async def get_benchmark_definition(benchmark_id: str) -> BenchmarkDefinitionRead:
     definition = get_benchmark(benchmark_id)
@@ -64,6 +71,15 @@ async def get_benchmark_definition(benchmark_id: str) -> BenchmarkDefinitionRead
     response_model=BenchmarkRunResponse,
     tags=["resource-intelligence"],
     summary="Execute a benchmark definition against multiple provider/model candidates",
+    description=(
+        "Looks up the named static benchmark definition, then runs it through the same "
+        "internal mechanism as `POST /v1/compare` - no second estimation path exists. May "
+        "legitimately return `insufficient_data` for a candidate rather than a fabricated "
+        "value. Requires a valid API key; touches no tenant-owned data."
+    ),
+    responses=error_responses(
+        *AUTH_ERRORS, ErrorCode.INVALID_REQUEST, ErrorCode.BENCHMARK_NOT_FOUND
+    ),
 )
 async def run_benchmark(
     payload: BenchmarkRunRequest,

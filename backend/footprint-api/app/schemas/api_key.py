@@ -4,6 +4,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ApiKeyCreateRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"name": "CI Key", "project_id": "proj_01hxyzabc123"}}
+    )
+
     name: str = Field(min_length=1, max_length=255)
     project_id: str | None = Field(
         default=None,
@@ -20,6 +24,17 @@ class ApiKeyCreated(BaseModel):
     retrievable again - only its hash and prefix are stored.
     """
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "key_01hxyzabc123",
+                "key": "afp_live_9f8c1b2a...(shown only this once)",
+                "key_prefix": "afp_live_9f8c1b2a",
+                "name": "CI Key",
+            }
+        }
+    )
+
     id: str
     key: str
     key_prefix: str
@@ -27,7 +42,23 @@ class ApiKeyCreated(BaseModel):
 
 
 class ApiKeyRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "key_01hxyzabc123",
+                "organization_id": "org_01hxyzabc123",
+                "project_id": "proj_01hxyzabc123",
+                "key_prefix": "afp_live_9f8c1b2a",
+                "name": "CI Key",
+                "status": "active",
+                "created_at": "2026-01-01T00:00:00Z",
+                "expires_at": None,
+                "last_used_at": "2026-01-02T00:00:00Z",
+                "revoked_at": None,
+            }
+        },
+    )
 
     id: str
     organization_id: str
@@ -42,5 +73,27 @@ class ApiKeyRead(BaseModel):
 
 
 class ApiKeyListResponse(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "items": [
+                    {
+                        "id": "key_01hxyzabc123",
+                        "organization_id": "org_01hxyzabc123",
+                        "project_id": "proj_01hxyzabc123",
+                        "key_prefix": "afp_live_9f8c1b2a",
+                        "name": "CI Key",
+                        "status": "active",
+                        "created_at": "2026-01-01T00:00:00Z",
+                        "expires_at": None,
+                        "last_used_at": "2026-01-02T00:00:00Z",
+                        "revoked_at": None,
+                    }
+                ],
+                "total": 1,
+            }
+        }
+    )
+
     items: list[ApiKeyRead]
     total: int

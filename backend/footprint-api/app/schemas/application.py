@@ -6,6 +6,16 @@ from app.models.enums import ApplicationEnvironment, ApplicationStatus
 
 
 class ApplicationCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Customer Support Bot",
+                "description": "Support chat assistant",
+                "environment": "production",
+            }
+        }
+    )
+
     name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=2000)
     environment: ApplicationEnvironment | None = None
@@ -19,6 +29,10 @@ class ApplicationCreate(BaseModel):
 
 
 class ApplicationUpdate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"status": "inactive", "description": "Deprecated"}}
+    )
+
     name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=2000)
     status: ApplicationStatus | None = None
@@ -26,7 +40,22 @@ class ApplicationUpdate(BaseModel):
 
 
 class ApplicationRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "app_01hxyzabc123",
+                "project_id": "proj_01hxyzabc123",
+                "name": "Customer Support Bot",
+                "slug": "customer-support-bot",
+                "description": "Support chat assistant",
+                "status": "active",
+                "environment": "production",
+                "created_at": "2026-01-01T00:00:00Z",
+                "updated_at": "2026-01-01T00:00:00Z",
+            }
+        },
+    )
 
     id: str
     project_id: str
@@ -40,5 +69,26 @@ class ApplicationRead(BaseModel):
 
 
 class ApplicationListResponse(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "items": [
+                    {
+                        "id": "app_01hxyzabc123",
+                        "project_id": "proj_01hxyzabc123",
+                        "name": "Customer Support Bot",
+                        "slug": "customer-support-bot",
+                        "description": "Support chat assistant",
+                        "status": "active",
+                        "environment": "production",
+                        "created_at": "2026-01-01T00:00:00Z",
+                        "updated_at": "2026-01-01T00:00:00Z",
+                    }
+                ],
+                "total": 1,
+            }
+        }
+    )
+
     items: list[ApplicationRead]
     total: int

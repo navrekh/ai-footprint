@@ -6,18 +6,40 @@ from app.models.enums import ProjectStatus
 
 
 class ProjectCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {"name": "Production", "description": "Production workloads"}
+        }
+    )
+
     name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=2000)
 
 
 class ProjectUpdate(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"example": {"status": "archived"}})
+
     name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=2000)
     status: ProjectStatus | None = None
 
 
 class ProjectRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "proj_01hxyzabc123",
+                "organization_id": "org_01hxyzabc123",
+                "name": "Production",
+                "slug": "production",
+                "description": "Production workloads",
+                "status": "active",
+                "created_at": "2026-01-01T00:00:00Z",
+                "updated_at": "2026-01-01T00:00:00Z",
+            }
+        },
+    )
 
     id: str
     organization_id: str
@@ -30,5 +52,25 @@ class ProjectRead(BaseModel):
 
 
 class ProjectListResponse(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "items": [
+                    {
+                        "id": "proj_01hxyzabc123",
+                        "organization_id": "org_01hxyzabc123",
+                        "name": "Production",
+                        "slug": "production",
+                        "description": "Production workloads",
+                        "status": "active",
+                        "created_at": "2026-01-01T00:00:00Z",
+                        "updated_at": "2026-01-01T00:00:00Z",
+                    }
+                ],
+                "total": 1,
+            }
+        }
+    )
+
     items: list[ProjectRead]
     total: int
