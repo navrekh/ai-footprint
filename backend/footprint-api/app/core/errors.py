@@ -4,6 +4,14 @@ from starlette import status
 
 
 class ErrorCode(StrEnum):
+    """The `error.code` value in this API's `{"error": {...}}` error
+    contract. Per-code meanings are documented once, in
+    app/core/openapi_docs.py's CODE_DESCRIPTIONS (surfaced in the
+    generated OpenAPI response examples for every route that can raise
+    each code) and in backend/footprint-api/README.md's "Errors" section
+    - not duplicated here, to avoid the two drifting apart.
+    """
+
     INVALID_REQUEST = "INVALID_REQUEST"
     INVALID_API_KEY = "INVALID_API_KEY"
     API_KEY_EXPIRED = "API_KEY_EXPIRED"

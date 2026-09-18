@@ -2,6 +2,18 @@ from enum import StrEnum
 
 
 class Modality(StrEnum):
+    """The general category of workload being measured.
+
+    * `text` - conversational/text-generation and reasoning workloads.
+    * `image` - image generation, editing, enhancement, and vision analysis.
+    * `video` - video generation workloads.
+    * `audio` - speech-to-text and audio generation workloads.
+    * `coding` - code generation, review, debugging, refactoring, and test generation.
+    * `agent` - multi-step autonomous agent workflows and coding-agent sessions.
+    * `other` - workloads (e.g. embeddings, RAG, classification) that are not
+      inherently tied to one of the modalities above.
+    """
+
     TEXT = "text"
     IMAGE = "image"
     VIDEO = "video"
@@ -12,6 +24,32 @@ class Modality(StrEnum):
 
 
 class ActivityType(StrEnum):
+    """The specific kind of AI operation a workload represents.
+
+    Each activity_type is only valid under specific modalities (enforced at
+    request-validation time - see ACTIVITY_TYPE_MODALITIES below):
+
+    * `text_generation` - conversational text generation (modality: `text`).
+    * `text_reasoning` - multi-step reasoning over text (modality: `text`).
+    * `image_generation` - generating a new image (modality: `image`).
+    * `image_editing` - modifying an existing image (modality: `image`).
+    * `image_enhancement` - upscaling/enhancing an existing image (modality: `image`).
+    * `video_generation` - generating a video (modality: `video`).
+    * `audio_generation` - generating audio/speech (modality: `audio`).
+    * `speech_to_text` - transcribing audio to text (modality: `audio`).
+    * `vision` - analyzing/describing an image (modality: `image`).
+    * `code_generation` - generating new code (modality: `coding`).
+    * `code_review` - reviewing existing code (modality: `coding`).
+    * `debugging` - diagnosing/fixing a defect (modality: `coding`).
+    * `test_generation` - generating tests (modality: `coding`).
+    * `code_refactoring` - restructuring code without changing behavior (modality: `coding`).
+    * `coding_agent` - an autonomous coding-agent step (modality: `coding` or `agent`).
+    * `embedding` - generating a vector embedding (modality: `text` or `other`).
+    * `rag` - retrieval-augmented generation (modality: `text` or `other`).
+    * `classification` - classifying text/image content (modality: `text`, `image`, or `other`).
+    * `agent_workflow` - a step within a general multi-step autonomous agent (modality: `agent`).
+    """
+
     TEXT_GENERATION = "text_generation"
     TEXT_REASONING = "text_reasoning"
     IMAGE_GENERATION = "image_generation"
@@ -161,6 +199,16 @@ class MetricStatus(StrEnum):
 
 
 class UsageGranularity(StrEnum):
+    """The time-bucket size for `GET /v1/usage/timeseries`.
+
+    * `day` - one bucket per calendar day.
+    * `week` - one bucket per calendar week.
+    * `month` - one bucket per calendar month.
+
+    A wider date range combined with a finer granularity may be rejected
+    with `INVALID_DATE_RANGE` if it would exceed the maximum bucket count.
+    """
+
     DAY = "day"
     WEEK = "week"
     MONTH = "month"

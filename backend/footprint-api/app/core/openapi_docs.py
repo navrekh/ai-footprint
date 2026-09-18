@@ -64,6 +64,57 @@ _STATUS_DESCRIPTIONS: dict[int, str] = {
     500: "An unexpected server error occurred.",
 }
 
+# What each error.code actually means - the single source of truth for
+# per-code documentation. Surfaced per-route below as each OpenAPI
+# example's `description` (the natural, schema-validation-free way to
+# document enum-like values that, unlike ActivityType/Modality/
+# UsageGranularity, are never themselves a Pydantic model field -
+# ErrorDetail.code is typed as plain `str`, so ErrorCode is never a
+# referenced OpenAPI component schema and a docstring on the enum class
+# itself would not appear in /openapi.json). Also mirrored in
+# backend/footprint-api/README.md's "Errors" table - keep both in sync.
+CODE_DESCRIPTIONS: dict[ErrorCode, str] = {
+    ErrorCode.INVALID_REQUEST: (
+        "Malformed or oversized request, e.g. a batch or candidate-list limit exceeded."
+    ),
+    ErrorCode.INVALID_API_KEY: "The API key is unknown, malformed, or revoked.",
+    ErrorCode.API_KEY_EXPIRED: "The key was valid but its expires_at has passed.",
+    ErrorCode.UNAUTHORIZED: "No Authorization header was supplied.",
+    ErrorCode.FORBIDDEN: "A project-scoped key explicitly targeted a different project.",
+    ErrorCode.PROVIDER_NOT_FOUND: "The requested provider is not registered.",
+    ErrorCode.MODEL_NOT_FOUND: (
+        "The requested model (or model_version) is not registered for that provider."
+    ),
+    ErrorCode.MODEL_NOT_SUPPORTED: (
+        "The model is deprecated, or does not support the requested modality."
+    ),
+    ErrorCode.INVALID_WORKLOAD: (
+        "e.g. an activity_type/modality mismatch, or a zero-quantity text workload."
+    ),
+    ErrorCode.MISSING_PARAMETER: (
+        "A required parameter was omitted (e.g. project_id for an organization-level key)."
+    ),
+    ErrorCode.METHODOLOGY_UNAVAILABLE: (
+        "Reserved; not currently raised - see the insufficient_data metric status instead."
+    ),
+    ErrorCode.RATE_LIMITED: "Reserved for a future rate limiter; not currently enforced.",
+    ErrorCode.NOT_FOUND: (
+        "A generic resource does not exist, or belongs to another tenant - deliberately "
+        "opaque, never distinguishing the two."
+    ),
+    ErrorCode.APPLICATION_NOT_FOUND: (
+        "The application does not exist anywhere the caller's organization can see."
+    ),
+    ErrorCode.APPLICATION_PROJECT_MISMATCH: (
+        "The application exists in the caller's organization but a different project."
+    ),
+    ErrorCode.INVALID_DATE_RANGE: (
+        "from is after to, or the requested range/granularity would exceed bounds."
+    ),
+    ErrorCode.BENCHMARK_NOT_FOUND: "The requested benchmark_id is not a known definition.",
+    ErrorCode.INTERNAL_ERROR: "An unhandled server error; never leaks a stack trace.",
+}
+
 
 def _error_example(code: ErrorCode) -> dict[str, Any]:
     return {
@@ -80,7 +131,9 @@ def _error_example(code: ErrorCode) -> dict[str, Any]:
 def error_responses(*codes: ErrorCode) -> OpenAPIResponses:
     """Builds an OpenAPI `responses=` fragment for the given error codes,
     grouping multiple codes that share an HTTP status into one response
-    entry with one example per code (via OpenAPI's `examples` map).
+    entry with one example per code (via OpenAPI's `examples` map). Each
+    example's `description` explains what that specific code means -
+    see CODE_DESCRIPTIONS.
     """
     responses: OpenAPIResponses = {}
     for code in codes:
@@ -94,6 +147,7 @@ def error_responses(*codes: ErrorCode) -> OpenAPIResponses:
         )
         entry["content"]["application/json"]["examples"][code.value] = {
             "summary": code.value,
+            "description": CODE_DESCRIPTIONS.get(code, ""),
             "value": _error_example(code),
         }
     return responses
