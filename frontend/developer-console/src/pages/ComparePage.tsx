@@ -70,8 +70,8 @@ export function ComparePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Compare"
-        description="Evaluate one workload definition independently against multiple provider/model candidates. This is not a recommendation, a ranking, or a winner — each candidate is measured on its own; the trade-off is yours to weigh."
+        title="Independent Candidate Evaluation"
+        description="Apply one workload definition across provider and model candidates. Results remain independent and in API-returned order."
       />
 
       <Card>
@@ -79,7 +79,7 @@ export function ComparePage() {
           <CardTitle>Workload definition</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Field label="Modality" htmlFor="compare-modality">
                 <Select
@@ -126,7 +126,7 @@ export function ComparePage() {
                 />
               </Field>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="border-l-2 border-primary/50 pl-3 text-xs text-muted-foreground">
               Only the fields relevant to a text/token-based workload are shown here. The API
               accepts the full workload field set (image, video, audio, tool-call and duration
               quantities) documented in the OpenAPI reference — use the API Explorer for other
@@ -154,13 +154,18 @@ export function ComparePage() {
 
       {compare.data ? (
         <div className="space-y-4" data-testid="compare-results">
-          <p className="text-xs text-muted-foreground">
-            Comparison ID: <span className="font-mono">{compare.data.comparison_id}</span> —
-            results below are shown in the exact order submitted, never reordered by impact.
-          </p>
-          {compare.data.results.map((result, index) => (
-            <ComparisonResultCard key={index} result={result} index={index} />
-          ))}
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 border-b border-border pb-3">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold">Candidate results</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Independent estimates in the exact order returned by the API.</p>
+            </div>
+            <span className="font-mono text-xs text-muted-foreground">{compare.data.comparison_id}</span>
+          </div>
+          <div className="grid items-start gap-4 xl:grid-cols-2">
+            {compare.data.results.map((result, index) => (
+              <ComparisonResultCard key={index} result={result} index={index} />
+            ))}
+          </div>
         </div>
       ) : null}
     </div>

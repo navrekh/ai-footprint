@@ -1,9 +1,13 @@
 import { useState } from "react";
+import { RefreshCw } from "lucide-react";
 
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { PageHeader } from "@/components/PageHeader";
 import { MetricRangeDisplay, ResourceRangesGrid } from "@/components/resource/MetricRangeDisplay";
+import { UsageTrend } from "@/components/resource/UsageTrend";
 import { WorkloadCoverage } from "@/components/resource/WorkloadCoverage";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Select } from "@/components/ui/field";
 import { CardsSkeleton, TableSkeleton } from "@/components/ui/skeleton";
@@ -100,12 +104,23 @@ export function UsagePage() {
         : dimension === "activity"
           ? byActivity
           : byApplication;
+  const isRefreshing = summary.isFetching || activeBreakdown.isFetching || timeseries.isFetching;
+
+  function refreshUsage() {
+    void Promise.all([summary.refetch(), activeBreakdown.refetch(), timeseries.refetch()]);
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Usage"
-        description="Resource impact of your recorded workloads, derived from persisted events — never a live measurement of an individual request."
+        title="AI Usage & Resource Impact"
+        description="Understand workload volume, measurement coverage, and estimated energy, water, and carbon ranges from persisted workload events."
+        actions={
+          <Button variant="secondary" size="sm" onClick={refreshUsage} disabled={isRefreshing}>
+            <RefreshCw className={isRefreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden="true" />
+            Refresh
+          </Button>
+        }
       />
 
       <Card>
@@ -199,6 +214,11 @@ export function UsagePage() {
             <CardsSkeleton count={5} />
           ) : summary.error ? (
             <ErrorState error={summary.error} onRetry={() => summary.refetch()} />
+          ) : summary.data.workloads.total === 0 ? (
+            <EmptyState
+              title="No workloads yet"
+              description="Connect your application and send your first AI workload to begin measuring resource impact."
+            />
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
@@ -327,8 +347,14 @@ export function UsagePage() {
               No workloads matched this period and these filters.
             </p>
           ) : (
-            <TableWrapper>
-              <Table>
+            <div className="space-y-4">
+              <UsageTrend points={timeseries.data.items} />
+              <details>
+                <summary className="cursor-pointer text-sm font-medium text-primary">
+                  View complete data table
+                </summary>
+                <TableWrapper className="mt-3">
+                  <Table>
                 <caption className="sr-only">Usage over time, by {timeseries.data.granularity}</caption>
                 <thead>
                   <tr>
@@ -347,8 +373,10 @@ export function UsagePage() {
                     </tr>
                   ))}
                 </tbody>
-              </Table>
-            </TableWrapper>
+                  </Table>
+                </TableWrapper>
+              </details>
+            </div>
           )}
         </CardContent>
       </Card>

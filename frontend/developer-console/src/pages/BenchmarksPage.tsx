@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 
 import { ErrorState } from "@/components/ErrorState";
 import { PageHeader } from "@/components/PageHeader";
-import { Table, TableWrapper, Td, Th } from "@/components/ui/table";
 import { Field, Select } from "@/components/ui/field";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { useBenchmarks } from "@/hooks/queries";
@@ -47,39 +47,29 @@ export function BenchmarksPage() {
           No benchmark definitions match this filter.
         </p>
       ) : (
-        <TableWrapper>
-          <Table>
-            <caption className="sr-only">Available benchmark definitions</caption>
-            <thead>
-              <tr>
-                <Th>Name</Th>
-                <Th>Activity type</Th>
-                <Th>Modality</Th>
-                <Th>Version</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {benchmarks.data.items.map((benchmark) => (
-                <tr key={benchmark.benchmark_id} className="last:[&>td]:border-b-0">
-                  <Td>
-                    <Link
-                      to={`/benchmarks/${benchmark.benchmark_id}`}
-                      className="font-medium text-foreground hover:text-primary hover:underline"
-                    >
-                      {benchmark.name}
-                    </Link>
-                    <p className="mt-0.5 max-w-md truncate text-xs text-muted-foreground">
-                      {benchmark.description}
-                    </p>
-                  </Td>
-                  <Td className="text-muted-foreground">{benchmark.activity_type}</Td>
-                  <Td className="text-muted-foreground">{benchmark.modality}</Td>
-                  <Td className="font-mono text-xs text-muted-foreground">{benchmark.version}</Td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </TableWrapper>
+        <div className="grid gap-3 md:grid-cols-2">
+          {benchmarks.data.items.map((benchmark) => (
+            <Link
+              key={benchmark.benchmark_id}
+              to={`/benchmarks/${benchmark.benchmark_id}`}
+              className="group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-[var(--radius-console)] border border-border bg-surface p-5 transition-colors hover:border-primary/50 hover:bg-surface-raised/40"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-mono">v{benchmark.version}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{benchmark.modality}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{benchmark.activity_type}</span>
+                </div>
+                <h2 className="mt-2 font-semibold text-foreground group-hover:text-primary">{benchmark.name}</h2>
+                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{benchmark.description}</p>
+                <p className="mt-4 font-mono text-[11px] text-muted-foreground">{benchmark.benchmark_id}</p>
+              </div>
+              <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground group-hover:text-primary" aria-hidden="true" />
+            </Link>
+          ))}
+        </div>
       )}
     </div>
   );

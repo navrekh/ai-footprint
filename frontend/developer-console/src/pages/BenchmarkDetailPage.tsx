@@ -58,7 +58,10 @@ export function BenchmarkDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Definition</CardTitle>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">Source contract</p>
+                <CardTitle className="mt-1">Benchmark definition</CardTitle>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -101,9 +104,8 @@ export function BenchmarkDetailPage() {
                 </dl>
               </div>
               <p className="text-xs text-muted-foreground">
-                Additional methodology and provenance details are not exposed by this benchmark
-                definition endpoint. Confidence, evidence level, methodology version and
-                assumptions become available per candidate once you run the benchmark below.
+                Methodology, provenance, limitations, confidence, normalization, and availability
+                are not available in this definition response.
               </p>
             </CardContent>
           </Card>
@@ -128,14 +130,19 @@ export function BenchmarkDetailPage() {
           </Card>
 
           {run.data ? (
-            <div className="space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Benchmark version: <span className="font-mono">{run.data.benchmark_version}</span>{" "}
-                — results below are shown in the exact order submitted.
-              </p>
-              {run.data.results.map((result, index) => (
-                <ComparisonResultCard key={index} result={result} index={index} />
-              ))}
+            <div className="space-y-4" data-testid="benchmark-results">
+              <div className="border-b border-border pb-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">Returned by execution</p>
+                <h2 className="mt-1 text-base font-semibold">Benchmark execution result</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Version <span className="font-mono">{run.data.benchmark_version}</span> · candidates remain in API-returned order.
+                </p>
+              </div>
+              <div className="grid items-start gap-4 xl:grid-cols-2">
+                {run.data.results.map((result, index) => (
+                  <ComparisonResultCard key={index} result={result} index={index} />
+                ))}
+              </div>
             </div>
           ) : null}
         </>

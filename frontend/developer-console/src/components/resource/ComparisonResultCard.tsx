@@ -21,7 +21,7 @@ export function ComparisonResultCard({
   const identity = result.resolved ?? result.candidate;
 
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardHeader className="flex flex-row items-start justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -77,14 +77,16 @@ export function ComparisonResultCard({
             ) : null}
             <EstimateDetails estimate={result.estimate} />
           </>
-        ) : result.error ? (
+         ) : result.error ? (
           <div className="rounded-[var(--radius-console)] border border-danger/40 bg-danger/5 px-3 py-2">
             <p className="text-sm text-foreground">{result.error.message}</p>
             <p className="mt-1 font-mono text-xs text-muted-foreground">
               {result.error.code} · Request ID: {result.error.request_id}
             </p>
           </div>
-        ) : null}
+         ) : (
+           <p className="text-sm text-muted-foreground">No result details were available in this response.</p>
+         )}
       </CardContent>
     </Card>
   );

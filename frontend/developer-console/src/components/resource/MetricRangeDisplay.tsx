@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { formatRange } from "@/lib/utils/format";
+import { formatMetricValue, formatRange } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
 import type { AggregateMetricRange, MetricRange, NormalizedMetricRange } from "@/types/api";
 
@@ -48,8 +48,19 @@ export function MetricRangeDisplay({
             compact ? "text-sm" : "mt-1 text-lg",
           )}
         >
-          {formatRange(range.min as number, range.max as number)}{" "}
-          <span className="text-xs font-normal text-muted-foreground">{range.unit}</span>
+          <span className="sr-only">{formatRange(range.min as number, range.max as number)} {range.unit}</span>
+          <span aria-hidden="true" className="inline-flex w-full items-center gap-2">
+            {range.min === range.max ? (
+              <span>{formatMetricValue(range.min as number)}</span>
+            ) : (
+              <>
+                <span>{formatMetricValue(range.min as number)}</span>
+                <span className="h-px min-w-5 flex-1 bg-primary/60" />
+                <span>{formatMetricValue(range.max as number)}</span>
+              </>
+            )}
+            <span className="text-xs font-normal text-muted-foreground">{range.unit}</span>
+          </span>
         </p>
       ) : (
         <p
@@ -81,10 +92,22 @@ export function ResourceRangesGrid({
   carbon: MetricRange | AggregateMetricRange | NormalizedMetricRange;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      <MetricRangeDisplay label="Energy" range={energy} />
-      <MetricRangeDisplay label="Water" range={water} />
-      <MetricRangeDisplay label="Carbon" range={carbon} />
+    <div className="grid overflow-hidden rounded-[var(--radius-console)] border border-border sm:grid-cols-3">
+      {[
+        { label: "Energy", range: energy },
+        { label: "Water", range: water },
+        { label: "Carbon", range: carbon },
+      ].map((item, index) => (
+        <div
+          key={item.label}
+          className={cn(
+            "min-w-0 bg-surface-raised/35 p-4",
+            index > 0 && "border-t border-border sm:border-l sm:border-t-0",
+          )}
+        >
+          <MetricRangeDisplay label={item.label} range={item.range} />
+        </div>
+      ))}
     </div>
   );
 }

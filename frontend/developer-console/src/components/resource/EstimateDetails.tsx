@@ -16,7 +16,7 @@ export function EstimateDetails({ estimate }: { estimate: EstimateResponse }) {
     <details className="group rounded-[var(--radius-console)] border border-border bg-surface-raised/50">
       <summary className="cursor-pointer select-none px-4 py-2.5 text-sm font-medium text-foreground marker:content-none">
         <span className="inline-flex items-center gap-1.5">
-          Methodology &amp; provenance
+           Methodology &amp; response details
           <span className="text-xs font-normal text-muted-foreground group-open:hidden">
             (show)
           </span>
@@ -29,25 +29,25 @@ export function EstimateDetails({ estimate }: { estimate: EstimateResponse }) {
         <dl className="grid gap-3 sm:grid-cols-2">
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">Confidence</dt>
-            <dd className="mt-0.5">{estimate.confidence ?? "—"}</dd>
+             <dd className="mt-0.5">{estimate.confidence ?? "Not available in this response"}</dd>
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">
               Evidence level
             </dt>
-            <dd className="mt-0.5">{estimate.evidence_level ?? "—"}</dd>
+             <dd className="mt-0.5">{estimate.evidence_level ?? "Not available in this response"}</dd>
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">
               Accounting boundary
             </dt>
-            <dd className="mt-0.5">{estimate.accounting_boundary ?? "—"}</dd>
+             <dd className="mt-0.5">{estimate.accounting_boundary ?? "Not available in this response"}</dd>
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">
               Methodology version
             </dt>
-            <dd className="mt-0.5 font-mono text-xs">{estimate.methodology_version ?? "—"}</dd>
+             <dd className="mt-0.5 font-mono text-xs">{estimate.methodology_version ?? "Not available in this response"}</dd>
           </div>
         </dl>
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Copy, Loader2 } from "lucide-react";
+import { Check, Copy, Loader2, LockKeyhole, Play } from "lucide-react";
 
 import { ErrorState } from "@/components/ErrorState";
 import { PageHeader } from "@/components/PageHeader";
@@ -114,6 +114,14 @@ export function ApiExplorerPage() {
     }
   }
 
+  const previewBody = (() => {
+    if (!hasBody || !bodyText.trim()) return undefined;
+    try {
+      return redactCredentialMaterial(JSON.parse(bodyText));
+    } catch {
+      return "[Request body is not valid JSON]";
+    }
+  })();
   const requestPreview = selected
     ? JSON.stringify(
         {
@@ -121,18 +129,20 @@ export function ApiExplorerPage() {
           path: buildPath() ?? selected.path,
           query: queryValues,
           headers: { Authorization: "Bearer ••••••••" },
-          body: hasBody && bodyText.trim() ? bodyText : undefined,
+          body: previewBody,
         },
         null,
         2,
       )
     : "";
 
+  const safeResponse = execute.isSuccess ? redactCredentialMaterial(execute.data.data) : undefined;
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="API Explorer"
-        description="Issue authenticated requests against the AI Footprint API using this browser session's connected key. The raw key is never shown or copied here — only 'Bearer ••••••••' is displayed."
+        description="Build and execute authenticated requests from the live API contract. Your connected credential remains masked and outside request parameters."
       />
 
       {spec.isPending ? (
@@ -141,11 +151,44 @@ export function ApiExplorerPage() {
         <ErrorState error={spec.error} onRetry={() => spec.refetch()} />
       ) : (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Request</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_minmax(19rem,0.8fr)]">
+            <Card className="hidden self-start lg:block">
+              <CardHeader><CardTitle>Endpoints</CardTitle></CardHeader>
+              <CardContent className="max-h-[70vh] space-y-5 overflow-y-auto p-3">
+                {groups.map(([tag, group]) => (
+                  <div key={tag}>
+                    <p className="px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{tag}</p>
+                    <div className="space-y-0.5">
+                      {group.map((endpoint) => {
+                        const key = endpointKey(endpoint);
+                        return (
+                          <Button
+                            key={key}
+                            type="button"
+                            variant="ghost"
+                            onClick={() => selectEndpoint(key)}
+                            className={`grid h-auto w-full grid-cols-[3.25rem_minmax(0,1fr)] justify-start gap-2 px-2 py-2 text-left text-xs ${selectedKey === key ? "bg-muted text-foreground" : ""}`}
+                          >
+                            <span className="font-mono font-semibold text-primary">{endpoint.method}</span>
+                            <span className="truncate font-mono">{endpoint.path.replace("/v1/", "/")}</span>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="min-w-0 self-start">
+              <CardHeader className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                <div className="min-w-0">
+                  <CardTitle>Request builder</CardTitle>
+                  {selected ? <p className="mt-1 truncate font-mono text-xs text-muted-foreground">{selected.method} {selected.path}</p> : null}
+                </div>
+                <LockKeyhole className="h-4 w-4 shrink-0 text-success" aria-label="Authenticated securely" />
+              </CardHeader>
+              <CardContent className="space-y-4">
               <Field label="Endpoint" htmlFor="explorer-endpoint">
                 <Select
                   id="explorer-endpoint"
@@ -233,12 +276,13 @@ export function ApiExplorerPage() {
                     Authorization: Bearer ••••••••
                   </p>
 
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
                     <Button onClick={handleExecute} disabled={execute.isPending}>
                       {execute.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                       ) : null}
-                      Execute
+                      <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                      Execute request
                     </Button>
                     <Button
                       type="button"
@@ -256,11 +300,12 @@ export function ApiExplorerPage() {
                   </div>
                 </>
               ) : null}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
+          <div className="min-w-0 xl:sticky xl:top-6 xl:self-start">
           {execute.isSuccess || execute.isError ? (
-            <Card>
+            <Card className="min-w-0">
               <CardHeader className="flex flex-row items-center justify-between gap-3">
                 <CardTitle>Response</CardTitle>
                 {execute.isSuccess ? (
@@ -275,14 +320,23 @@ export function ApiExplorerPage() {
                     <p className="font-mono text-xs text-muted-foreground">
                       Request ID: {execute.data.requestId ?? "—"}
                     </p>
-                    <ResponseBody value={execute.data.data} onCopy={(text) => copyText("response", text)} copied={copied === "response"} />
+                     <ResponseBody value={safeResponse} onCopy={(text) => copyText("response", text)} copied={copied === "response"} />
                   </>
                 ) : (
                   <ExecuteErrorView error={execute.error} />
                 )}
               </CardContent>
             </Card>
-          ) : null}
+          ) : (
+            <Card className="border-dashed">
+              <CardContent className="py-14 text-center">
+                <p className="text-sm font-medium">Response workspace</p>
+                <p className="mt-1 text-xs text-muted-foreground">Select an endpoint, provide its parameters, and execute the request.</p>
+              </CardContent>
+            </Card>
+          )}
+          </div>
+          </div>
         </>
       )}
     </div>
@@ -321,5 +375,18 @@ function ExecuteErrorView({ error }: { error: unknown }) {
         <p className="font-mono text-xs text-muted-foreground">Request ID: {requestId}</p>
       ) : null}
     </div>
+  );
+}
+
+function redactCredentialMaterial(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactCredentialMaterial);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      /^(key|api_key|access_token|authorization)$/i.test(key)
+        ? "[REDACTED]"
+        : redactCredentialMaterial(item),
+    ]),
   );
 }
