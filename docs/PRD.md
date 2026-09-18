@@ -452,6 +452,8 @@ Sprint 4 does not add real provider/model environmental factors. Production meth
 
 The product objective of Sprint 5 is to make AI Footprint usable by an external developer without requiring knowledge of the internal repository or estimation-engine implementation. The primary Sprint 5 outcome is developer usability, not additional estimation capability.
 
+**Implementation status:** Sprint 5 was delivered in sub-phases. Sprint 5A (developer API productization: OpenAPI/reference documentation, request correlation, CORS) and Sprint 5B (the official Python SDK, described below) are implemented. The developer console and API Explorer described later in this section remain a specification for a future sub-phase and are not yet implemented.
+
 Target developer journey:
 
 Sign up → Create Organization → Create Project → Create Application → Create API Key → Read Quick Start → Send first workload → Receive footprint → View usage → Compare workloads → Integrate SDK.
@@ -483,12 +485,12 @@ Existing capabilities must be documented clearly, without changing endpoint beha
 
 ### Python SDK
 
-A thin official Python SDK calling the REST API only. Conceptual interface:
+**Delivered in Sprint 5B** (`sdk/`, package name `aifootprint`, Python `>=3.10`). Actual interface:
 
 ```python
-from aifootprint import AI
+from aifootprint import AIClient
 
-client = AI(api_key="af_live_xxx")
+client = AIClient(api_key="afp_live_xxx")
 
 result = client.events.create(
     project_id="proj_xxx",
@@ -502,7 +504,7 @@ result = client.events.create(
 )
 ```
 
-The SDK exposes `events`, `estimates`, `usage`, `compare`, and `benchmarks`. It must not contain estimation logic, environmental coefficients, or any duplicate methodology calculation — it is a client of the existing REST API, nothing more.
+The client class is named `AIClient` rather than the `AI` used in this section's original conceptual sketch, for clarity at call sites. The delivered SDK exposes one namespace per resource — `organizations`, `projects`, `applications`, `api_keys`, `estimates`, `events`, `batch`, `workloads`, `usage`, `compare`, `benchmarks`, `providers`, `models`, and `methodology` — a superset of the original sketch's `events`/`estimates`/`usage`/`compare`/`benchmarks`, since onboarding (organizations/projects/applications/API keys) and the public registries turned out to be necessary for a developer to use the SDK without any raw HTTP calls at all. It contains no estimation logic, environmental coefficients, or duplicate methodology calculation — it is a client of the existing REST API, nothing more. See `sdk/README.md` for its Quick Start.
 
 ### Developer console and API Explorer
 

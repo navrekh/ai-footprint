@@ -7,6 +7,12 @@ Every example below sends the exact same six requests three ways
 (`curl`, Python's `requests`, and JavaScript's `fetch`), so pick whichever
 matches how you'll actually integrate.
 
+> **Using Python?** The examples below use the `requests` library
+> directly so they're readable from any language, but an official,
+> typed Python SDK (`pip install -e ./sdk`, package name `aifootprint`)
+> is also available and covers every endpoint referenced on this page —
+> see `sdk/README.md` for its own Quick Start.
+
 > **About the JavaScript examples:** they run as shown in Node.js (or
 > any non-browser JS runtime), which isn't subject to browser CORS
 > restrictions. Pasted into an arbitrary browser tab's console instead,
@@ -353,6 +359,10 @@ console.log(compare);
 
 ## Where to go next
 
+- **Official Python SDK:** `sdk/README.md` — a thin, typed client
+  (`pip install -e ./sdk`) covering organizations, projects,
+  applications, API keys, estimates, events, usage, compare, and
+  benchmarks, so you don't have to hand-write the requests above.
 - **Full API reference:** `GET /docs` (Swagger UI) on your running
   instance, or `GET /openapi.json` for the raw schema — every endpoint,
   request/response shape, and possible error is documented there.
