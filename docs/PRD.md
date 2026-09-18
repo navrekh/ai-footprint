@@ -1,10 +1,10 @@
 # AI FOOTPRINT
 ## Product Requirements Document (PRD)
-### Version 0.3 — Foundation + Developer Platform + Resource Intelligence + Developer Experience
+### Version 0.4 — Foundation + Developer Platform + Resource Intelligence + Developer Experience + Adoption & Instrumentation
 
 **Product:** AI Footprint  
 **Working tagline:** Know the hidden resource impact of AI.  
-**Status:** Approved — Sprint 5 baseline  
+**Status:** Approved — Sprint 6 baseline  
 
 ## 1. Executive Summary
 
@@ -564,3 +564,305 @@ The following do not block the developer-platform MVP:
 15. Privacy behavior is documented.
 16. No unsupported precision claims are made.
 17. New providers can be added without modifying the core estimation architecture.
+
+## 38. Sprint 6 — Adoption & Instrumentation Foundation
+
+### 38.1 Objective
+
+Sprint 6 establishes the common adoption and instrumentation layer that allows AI Footprint to be consumed consistently by multiple client surfaces without duplicating workload measurement or estimation logic.
+
+The strategic objective is:
+
+> Create a unified instrumentation contract through which the Web Console, SDKs, CLI, Browser Extension, Mobile applications and direct API integrations can identify and submit AI workloads using one canonical AI Footprint model.
+
+Sprint 6 is a platform-foundation sprint. It does not attempt to build the complete CLI, Browser Extension or Mobile applications. Those clients are subsequent delivery surfaces that must consume the contracts established here.
+
+### 38.2 Product evolution
+
+The product evolves from a developer-facing API and console into a multi-surface AI resource intelligence platform:
+
+~~~text
+                         AI Footprint Platform
+                                  |
+                         AIWorkload Contract
+                                  |
+                    +-------------+-------------+
+                    |                           |
+              Estimation /                Usage /
+              Provenance                  Intelligence
+                    |                           |
+       +------------+------------+--------------+------------+
+       |            |            |              |            |
+      Web          SDK          CLI        Browser Ext.   Mobile
+    Console                     (S7)          (S8)        (S9)
+~~~
+
+The API remains the system-of-record interface for external clients. Client applications must not implement independent footprint calculations.
+
+### 38.3 In scope
+
+1. Define a canonical client/integration metadata contract.
+2. Define how an AIWorkload identifies its originating client surface.
+3. Extend workload/event contracts only where required to carry client/integration metadata.
+4. Establish a stable instrumentation contract for future SDK, CLI, Browser Extension and Mobile clients.
+5. Define privacy-preserving instrumentation rules.
+6. Establish client/integration taxonomy and version semantics.
+7. Define event-ingestion behavior for instrumented workloads.
+8. Define compatibility rules for future client versions.
+9. Add API/OpenAPI documentation for the instrumentation contract.
+10. Add backend validation and regression tests.
+11. Add SDK model/client support only where required to represent the new contract; do not add estimation logic.
+12. Document the extension/mobile/CLI integration boundaries for subsequent sprints.
+13. Preserve all existing authentication, authorization, tenant isolation, idempotency, provenance, range and uncertainty semantics.
+
+### 38.4 Canonical client metadata
+
+The platform shall distinguish Application identity from Client/Integration identity.
+
+Application answers: Which AI product, service, environment or workload source does this workload belong to?
+
+Client/Integration metadata answers: Through which software surface or integration was this workload instrumented?
+
+These concepts must not be conflated.
+
+The client contract should support, at minimum:
+
+- client type
+- client name
+- client version
+- integration type
+- optional integration version
+- optional non-sensitive runtime metadata
+
+The exact wire representation shall be defined in the Sprint 6 FRD and OpenAPI contract rather than allowing each client to invent fields.
+
+### 38.5 Initial client taxonomy
+
+The platform should support the following client categories as controlled values or an explicitly versioned extensible taxonomy:
+
+- web
+- python_sdk
+- javascript_sdk
+- cli
+- browser_extension
+- ios
+- android
+- direct_api
+
+This taxonomy describes the instrumentation surface, not the AI provider.
+
+New client types must not require changes to the estimation engine.
+
+### 38.6 AIWorkload remains the canonical abstraction
+
+Sprint 6 does not replace AIWorkload with Prompt, Session, Interaction or ClientEvent.
+
+The workload continues to represent the measurable unit of AI activity and retains:
+
+- provider
+- model
+- model version
+- modality
+- activity type
+- workload quantities
+- timestamp
+- project/application association where applicable
+- parent workload relationship where applicable
+- metadata
+- estimate/provenance
+
+Client metadata is additive context about the origin of the workload.
+
+### 38.7 Privacy requirements
+
+Instrumentation must be privacy-first.
+
+The default contract must not require:
+
+- prompt content
+- model response content
+- private images
+- audio content
+- video content
+- source code
+- browser page contents
+- cookies
+- authentication tokens belonging to third-party AI services
+
+Client implementations should prefer measurable metadata such as:
+
+- provider/model identifiers
+- workload type
+- token or media quantities when available
+- duration
+- application/integration identifier
+- client type/version
+- timestamp
+- user-controlled metadata
+
+The Browser Extension must eventually be capable of operating without transmitting private AI conversation content to AI Footprint.
+
+### 38.8 Instrumentation semantics
+
+A client reports an AI workload to AI Footprint; it does not report an environmental estimate unless the API contract explicitly supports an externally supplied, provenance-qualified measurement in a future release.
+
+The canonical flow is:
+
+~~~text
+AI activity
+   |
+Client instrumentation
+   |
+Canonical AIWorkload metadata
+   |
+POST /v1/events
+   |
+Existing validation / resolver / estimation pipeline
+   |
+Estimate
+   |
+Persisted workload + estimate
+   |
+Usage / Console / future client surfaces
+~~~
+
+The measurement engine remains the sole runtime authority for AI Footprint-generated estimates.
+
+### 38.9 Idempotency and replay
+
+Instrumented clients must use the existing idempotency contract where an event may be retried.
+
+The client layer must not invent a second deduplication mechanism.
+
+Repeated submission of the same client-supplied idempotency key within the applicable project scope continues to return the original workload/estimate according to the existing Sprint 2 semantics.
+
+### 38.10 Client versioning
+
+Client metadata must support independent client versioning.
+
+A new Browser Extension version, SDK release or CLI release must not imply a new AI Footprint API version.
+
+Breaking changes to the external API continue to require a new API version.
+
+Client metadata is observational/instrumentation metadata and must not alter estimation behavior unless a future explicitly approved methodology requires it.
+
+### 38.11 SDK direction
+
+The existing Python SDK remains a thin REST client.
+
+Sprint 6 may add typed support for the new instrumentation metadata contract if required by the API. It must not add footprint calculation, provider-specific environmental logic or local estimation.
+
+Future SDKs must follow the same contract.
+
+### 38.12 CLI direction
+
+Sprint 6 defines the CLI integration contract but does not deliver the full CLI product.
+
+Sprint 7 will use this contract to provide developer workflow commands such as event submission and usage inspection.
+
+The CLI must remain a client of the API.
+
+### 38.13 Browser Extension direction
+
+Sprint 6 defines the privacy and instrumentation boundary for the future Browser Extension.
+
+The extension will eventually be an awareness and measurement surface for supported AI web applications.
+
+The extension must:
+
+- minimize data collection
+- avoid collecting conversation content by default
+- use explicit site-level/user-level controls
+- send only the metadata necessary for workload identification and measurement
+- use the AI Footprint API rather than implementing independent environmental calculations
+
+Extension UI and site-specific adapters are Sprint 8 scope, not Sprint 6 scope.
+
+### 38.14 Mobile direction
+
+Sprint 6 defines the API/client boundary for future iOS and Android clients.
+
+Mobile applications will eventually provide personal AI resource awareness, history and related experiences.
+
+Mobile applications must consume the same workload, estimate, usage and methodology contracts as other clients.
+
+Native mobile UI, distribution and mobile-specific telemetry are deferred.
+
+### 38.15 Success criteria
+
+Sprint 6 succeeds when:
+
+1. A canonical client/integration metadata contract exists.
+2. The contract is represented in OpenAPI.
+3. Existing event ingestion remains backward compatible.
+4. Instrumented workloads can identify their originating client surface.
+5. Application identity remains distinct from client identity.
+6. Privacy requirements are explicit and testable.
+7. Existing idempotency semantics remain unchanged.
+8. Client versioning is independent of API versioning.
+9. The Python SDK can represent the instrumentation contract where applicable.
+10. No client contains independent estimation logic.
+11. Future CLI, Browser Extension and Mobile clients can consume the same API contract.
+12. Existing Sprint 1–5 functionality remains backward compatible.
+13. Automated tests and static checks pass.
+
+### 38.16 Explicit non-goals
+
+Sprint 6 does not include:
+
+- full CLI implementation
+- Browser Extension implementation
+- Chrome Web Store or Firefox Marketplace distribution
+- iOS application
+- Android application
+- App Store or Play Store distribution
+- JavaScript SDK implementation beyond contract planning
+- direct interception of private AI traffic
+- provider credential capture
+- prompt/response storage
+- browser content storage
+- new provider integrations
+- new environmental coefficients
+- new estimation algorithms
+- optimization engine
+- model routing
+- rankings
+- scoring
+- recommendation engine
+- billing
+- payments
+- RBAC
+- SSO
+- enterprise gateway
+- Redis
+- Kafka
+- data warehouse
+- Kubernetes
+- persistent benchmark result storage
+
+### 38.17 Sprint 6 delivery sequence
+
+Recommended implementation sequence:
+
+1. Freeze Sprint 5 baseline.
+2. Define client/integration domain semantics.
+3. Define canonical instrumentation schema.
+4. Define OpenAPI request/response changes.
+5. Implement backend validation and persistence changes only where necessary.
+6. Update Python SDK types/resources only where required.
+7. Add privacy/security/idempotency regression tests.
+8. Validate backward compatibility with existing clients.
+9. Document CLI, Browser Extension and Mobile integration contracts.
+10. Review and merge Sprint 6 only after the complete verification gate passes.
+
+### 38.18 Roadmap after Sprint 6
+
+~~~text
+Sprint 6  — Adoption & Instrumentation Foundation
+Sprint 7  — CLI + Developer Workflow
+Sprint 8  — Browser Extension
+Sprint 9  — Mobile Apps
+Sprint 10+ — Integrations / Enterprise / broader adoption
+~~~
+
+The platform must continue to expose one common AIWorkload and estimation foundation across every surface.

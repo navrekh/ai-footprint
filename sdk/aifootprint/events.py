@@ -18,7 +18,7 @@ from datetime import datetime
 
 from ._transport import Transport
 from .estimates import build_workload_body
-from .models import Event
+from .models import ClientContext, Event
 
 
 class EventsResource:
@@ -52,11 +52,17 @@ class EventsResource:
         duration_seconds: float | None = None,
         duration_ms: float | None = None,
         metadata: dict | None = None,
+        client: ClientContext | dict | None = None,
     ) -> Event:
         """`project_id` is required for an organization-level API key
         and optional (must match the key's own project) for a
         project-scoped key. `application_id`, when given, must belong to
         the same project the event is persisted under.
+
+        `client` is optional client/integration metadata (Sprint 6)
+        identifying the software surface instrumenting this event -
+        distinct from `application_id`. It is purely observational and
+        never affects the resulting estimate.
         """
         body = build_workload_body(
             provider=provider,
@@ -78,6 +84,7 @@ class EventsResource:
             duration_seconds=duration_seconds,
             duration_ms=duration_ms,
             metadata=metadata,
+            client=client,
         )
         body.update(
             {

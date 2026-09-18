@@ -2,7 +2,70 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.models.enums import ActivityType, Modality, validate_activity_type_modality
+from app.models.enums import ActivityType, ClientType, Modality, validate_activity_type_modality
+
+
+class ClientContext(BaseModel):
+    """Identifies the software surface that instrumented a workload -
+    distinct from `application_id` (see EventCreateRequest), which
+    identifies the product/service/environment that *owns* the workload
+    (Sprint 6 FRD section 38.2/38.3).
+
+    Every field is optional and purely observational: nothing here is
+    read by validation, provider/model/methodology resolution, or the
+    estimation pipeline (app/methodology/pipeline.py), so submitting
+    different client metadata for an otherwise identical workload never
+    changes the resulting estimate. Treat every field as
+    potentially user-controlled input, never as authorization data - it
+    must never be used to derive organization/project/application
+    ownership or API-key scope.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "client_type": "python_sdk",
+                "client_name": "aifootprint-python",
+                "client_version": "0.5.0",
+                "integration_type": "backend_middleware",
+                "integration_version": "1.2.0",
+                "runtime": "python/3.13",
+            }
+        }
+    )
+
+    client_type: ClientType | None = Field(
+        default=None,
+        description="Controlled client-surface category. See ClientType for the full taxonomy.",
+    )
+    client_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        description="Human-readable client/integration identifier, e.g. an SDK or app name.",
+    )
+    client_version: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=32,
+        description=(
+            "Version of the client surface itself. Observational only - a client version "
+            "change never implies an API version change and never alters estimation."
+        ),
+    )
+    integration_type: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        description="Free-form integration mechanism/category, e.g. 'backend_middleware'.",
+    )
+    integration_version: str | None = Field(default=None, min_length=1, max_length=32)
+    runtime: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        description="Optional non-sensitive runtime identifier, e.g. 'python/3.13'.",
+    )
 
 
 class WorkloadInput(BaseModel):
@@ -52,6 +115,14 @@ class WorkloadInput(BaseModel):
     duration_ms: float | None = Field(default=None, ge=0)
 
     metadata: dict | None = None
+    client: ClientContext | None = Field(
+        default=None,
+        description=(
+            "Optional client/integration metadata identifying the software surface that "
+            "instrumented this workload (Sprint 6). Purely observational: never affects "
+            "provider/model resolution, methodology resolution, or the resulting estimate."
+        ),
+    )
 
     @model_validator(mode="after")
     def check_activity_matches_modality(self) -> "WorkloadInput":
@@ -154,6 +225,7 @@ class WorkloadRead(BaseModel):
                 "duration_ms": None,
                 "parent_workload_id": None,
                 "metadata": None,
+                "client": None,
                 "created_at": "2026-01-01T00:00:00Z",
             }
         },
@@ -184,6 +256,7 @@ class WorkloadRead(BaseModel):
     duration_ms: float | None
     parent_workload_id: str | None
     metadata: dict | None = Field(validation_alias="workload_metadata", default=None)
+    client: ClientContext | None = Field(validation_alias="client_context", default=None)
     created_at: datetime
 
 
@@ -218,6 +291,7 @@ class WorkloadPage(BaseModel):
                         "duration_ms": None,
                         "parent_workload_id": None,
                         "metadata": None,
+                        "client": None,
                         "created_at": "2026-01-01T00:00:00Z",
                     }
                 ],
