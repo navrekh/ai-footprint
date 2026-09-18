@@ -101,6 +101,36 @@ describe("Application project scope (Fix 1)", () => {
     });
   });
 
+  it("Test A - organization-level key + defaultProjectId: a contextual default is never an explicit selection", async () => {
+    connectSession(RAW_ORG_KEY);
+    const calls = mockApi(routesFor(keyMetadata({ project_id: null })));
+    // Opened from proj_2's own detail page - this must not, by itself,
+    // count as the user having chosen proj_2.
+    renderWithProviders(
+      <ApplicationFormDialog open onOpenChange={() => {}} defaultProjectId="proj_2" />,
+    );
+
+    const select = await screen.findByLabelText("Project");
+    expect(select).toHaveValue("");
+
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Support Bot" } });
+    const submit = screen.getByRole("button", { name: /create application/i });
+    expect(submit).toBeDisabled();
+    fireEvent.click(submit);
+    expect(calls.find((c) => c.method === "POST")).toBeUndefined();
+
+    // Now the user actually, explicitly selects proj_2.
+    fireEvent.change(select, { target: { value: "proj_2" } });
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === "POST")?.body).toMatchObject({
+        name: "Support Bot",
+        project_id: "proj_2",
+      });
+    });
+  });
+
   it("project-scoped key: scope is locked to the key's own project, no dropdown shown", async () => {
     connectSession(RAW_PROJECT_KEY);
     const calls = mockApi(
@@ -120,7 +150,7 @@ describe("Application project scope (Fix 1)", () => {
     });
   });
 
-  it("project-scoped key: cannot be steered to another project via stale defaultProjectId", async () => {
+  it("Test C - project-scoped key: locked to its own project even with a stale defaultProjectId, and cannot be changed", async () => {
     connectSession(RAW_PROJECT_KEY);
     const calls = mockApi(
       routesFor(keyMetadata({ project_id: "proj_1", key_prefix: "afp_live_proj1" })),
@@ -131,7 +161,12 @@ describe("Application project scope (Fix 1)", () => {
       <ApplicationFormDialog open onOpenChange={() => {}} defaultProjectId="proj_2" />,
     );
 
-    await screen.findByDisplayValue("Web Frontend");
+    const locked = await screen.findByDisplayValue("Web Frontend");
+    // No selectable dropdown is offered at all - there is nothing for the
+    // user to change, stale defaultProjectId or not.
+    expect(screen.queryByRole("combobox", { name: "Project" })).not.toBeInTheDocument();
+    expect(locked).toBeDisabled();
+
     fillNameAndSubmit();
     await waitFor(() => {
       expect(calls.find((c) => c.method === "POST")?.body).toMatchObject({
@@ -159,6 +194,35 @@ describe("Application project scope (Fix 1)", () => {
     await waitFor(() => {
       expect(calls.find((c) => c.method === "POST")?.body).toMatchObject({
         project_id: "proj_1",
+      });
+    });
+  });
+
+  it("Test B - unknown scope + defaultProjectId: a contextual default is never an explicit selection", async () => {
+    connectSession(RAW_ORG_KEY);
+    // Connected key cannot be matched to any metadata row -> scope unknown.
+    const calls = mockApi(routesFor(keyMetadata({ key_prefix: "afp_live_unrel" })));
+    renderWithProviders(
+      <ApplicationFormDialog open onOpenChange={() => {}} defaultProjectId="proj_2" />,
+    );
+
+    await screen.findByText(/could not determine the connected key's scope/i);
+    const select = screen.getByLabelText("Project");
+    expect(select).toHaveValue("");
+
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Support Bot" } });
+    const submit = screen.getByRole("button", { name: /create application/i });
+    expect(submit).toBeDisabled();
+    fireEvent.click(submit);
+    expect(calls.find((c) => c.method === "POST")).toBeUndefined();
+
+    // Now the user actually, explicitly selects proj_2.
+    fireEvent.change(select, { target: { value: "proj_2" } });
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === "POST")?.body).toMatchObject({
+        project_id: "proj_2",
       });
     });
   });

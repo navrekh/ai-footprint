@@ -25,7 +25,16 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   application?: Application;
-  /** Pre-selected project when creating from a project detail page. */
+  /**
+   * The project a caller opened this dialog from (e.g. a project detail
+   * page). Deliberately NOT used to pre-fill or pre-select the project
+   * field for a new application: doing so let a stale/contextual value
+   * silently satisfy the "explicit project selection" requirement for an
+   * organization-level or unidentifiable credential, without the user
+   * ever actually choosing it. A project-scoped credential ignores this
+   * value entirely regardless (it is always locked to its own project -
+   * see `scope.kind === "project"` below).
+   */
   defaultProjectId?: string;
 }
 
@@ -59,16 +68,29 @@ export function ApplicationFormDialog({
     setDescription(application?.description ?? "");
     setEnvironment((application?.environment as ApplicationEnvironment) ?? "");
     setStatus((application?.status as ApplicationStatus) ?? "active");
-    setProjectId(application?.project_id ?? defaultProjectId ?? "");
+    // For a new application, the project field always starts empty (never
+    // seeded from `defaultProjectId`) - see the Props doc comment above:
+    // a contextual/default value must never silently satisfy the explicit
+    // selection requirement below. Editing always has a real project_id.
+    setProjectId(application?.project_id ?? "");
     create.reset();
     update.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, application, defaultProjectId]);
+  }, [open, application]);
 
   const lockedProjectName =
     scope.kind === "project"
       ? (projects.data?.items.find((project) => project.id === scope.projectId)?.name ??
         scope.projectId)
+      : null;
+
+  // Display-only context (e.g. "opened from Mobile's page") for a
+  // non-locked scope - never used to pre-fill `projectId` or otherwise
+  // treated as an explicit selection. See the Props doc comment above.
+  const defaultProjectName =
+    scope.kind !== "project" && defaultProjectId
+      ? (projects.data?.items.find((project) => project.id === defaultProjectId)?.name ??
+        defaultProjectId)
       : null;
 
   /**
@@ -155,9 +177,10 @@ export function ApplicationFormDialog({
               label="Project"
               htmlFor="application-project"
               hint={
-                scope.kind === "organization"
+                (scope.kind === "organization"
                   ? "Required. Applications always belong to exactly one project."
-                  : "The console could not determine the connected key's scope, so an explicit project is required."
+                  : "The console could not determine the connected key's scope, so an explicit project is required.") +
+                (defaultProjectName ? ` Opened from ${defaultProjectName} - select it explicitly to use it.` : "")
               }
             >
               <Select
