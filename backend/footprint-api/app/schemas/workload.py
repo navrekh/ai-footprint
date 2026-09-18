@@ -108,8 +108,8 @@ class EventCreateResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "event_id": "wl_01hxyzabc123",
-                "workload_id": "wl_01hxyzabc123",
+                "event_id": "evt_01hxyzabc123",
+                "workload_id": "evt_01hxyzabc123",
                 "estimate_id": "est_01hxyzabc123",
                 "status": "measured",
                 "idempotent_replay": False,

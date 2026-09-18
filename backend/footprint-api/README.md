@@ -7,6 +7,9 @@ as a fabricated exact measurement. See `docs/PRD.md`, `docs/FRD.md`,
 `docs/ARCHITECTURE.md` and `docs/METHODOLOGY.md` for the full product
 specification this backend implements.
 
+**New here?** [`docs/QUICKSTART.md`](../../docs/QUICKSTART.md) gets you
+from zero to your first footprint estimate in about 10 minutes.
+
 - **Sprint 1** delivered the backend foundation: FastAPI app, PostgreSQL
   persistence, the provider/model/methodology registries, the estimation
   engine, project-scoped API-key authentication and the initial
@@ -16,15 +19,30 @@ specification this backend implements.
   (organization-level and project-scoped keys, expiry, revocation),
   durable workload/estimate persistence with provenance, idempotent event
   ingestion, and paginated workload/estimate history APIs.
-- **Sprint 3** (this revision) adds the developer platform and usage
-  intelligence layer: an `Application` entity between Project and
-  AIWorkload, application-aware event submission, and six usage
-  intelligence endpoints (summary, and breakdowns by provider/model/
-  activity/application, plus a time series) - all derived from persisted
-  data via PostgreSQL aggregation, with no separate usage ledger.
+- **Sprint 3** added the developer platform and usage intelligence
+  layer: an `Application` entity between Project and AIWorkload,
+  application-aware event submission, and six usage intelligence
+  endpoints (summary, and breakdowns by provider/model/activity/
+  application, plus a time series) - all derived from persisted data via
+  PostgreSQL aggregation, with no separate usage ledger.
+- **Sprint 4** added AI Resource Intelligence: `POST /v1/compare`
+  (evaluate one workload across multiple provider/model candidates,
+  each independently, never ranked), standardized/versioned benchmark
+  definitions (`GET /v1/benchmarks`, `GET /v1/benchmarks/{id}`,
+  `POST /v1/benchmarks/run`), normalized resource intensity (per
+  token/image/second/minute where defensible), and a read-only
+  methodology-data governance validator (`scripts/validate_methodology.py`).
+- **Sprint 5A** (this revision) is developer-experience productization
+  over the existing API: complete OpenAPI documentation (descriptions,
+  examples, and documented error responses for every endpoint), CORS
+  for the future Developer Console (per `docs/ADR-012-console-authentication.md`),
+  and this refreshed README/Quick Start. **No new endpoint, schema,
+  estimation logic, or methodology data was introduced.**
 
-No frontend, mobile app or browser extension is in scope for any sprint
-so far.
+No frontend, Python SDK, or browser extension exists in this repository
+yet - see `docs/FRD.md` section 36 for the Sprint 5B/5C target
+architecture (a thin REST-client SDK and a static developer console),
+neither of which is implemented by Sprint 5A.
 
 ## Architecture
 
@@ -349,6 +367,10 @@ Once running: `GET /docs` (Swagger UI) and `GET /openapi.json`.
 | GET | `/v1/usage/by-activity` | any key | limit/offset paginated |
 | GET | `/v1/usage/by-application` | any key | excludes unassigned workloads; limit/offset paginated |
 | GET | `/v1/usage/timeseries` | any key | `granularity=day\|week\|month`; bounded to 400 buckets |
+| POST | `/v1/compare` | any key | evaluate one workload across 2-`MAX_COMPARE_CANDIDATES` provider/model candidates; never ranked |
+| GET | `/v1/benchmarks` | none | static, versioned benchmark definitions |
+| GET | `/v1/benchmarks/{id}` | none | |
+| POST | `/v1/benchmarks/run` | any key | executes a benchmark via the same mechanism as `/v1/compare` |
 | GET | `/v1/providers` | none | |
 | GET | `/v1/models` | none | |
 | GET | `/v1/methodology` | none | |
@@ -356,6 +378,96 @@ Once running: `GET /docs` (Swagger UI) and `GET /openapi.json`.
 All `/v1/usage/*` endpoints accept `from`, `to`, `project`, `application`,
 `provider`, `model` and `activity_type` query filters (composable), and
 default to the trailing 30 days when `from`/`to` are omitted.
+
+Complete request/response schemas, examples and error responses for
+every endpoint above are in the generated OpenAPI document (`/docs`,
+`/openapi.json`) - the table above is a quick reference, not the source
+of truth.
+
+### Request correlation (request_id / workload_id / estimate_id)
+
+Every response - success or error - carries an `X-Request-ID` response
+header, generated fresh per request (`app/core/request_id.py`). Error
+response bodies additionally embed the same value as `error.request_id`.
+Success response bodies do not repeat it in the JSON body (check the
+header), except where a resource id doubles as correlation - `workload_id`
+and `estimate_id` from `POST /v1/events` let you look the record up later
+via `GET /v1/workloads/{id}` / `GET /v1/estimates/{id}`. An `estimate_id`
+returned by the *stateless* `POST /v1/estimate` has no persisted row
+behind it - nothing to look up, by design.
+
+When reporting an issue, include the `X-Request-ID` (or `error.request_id`)
+value - it is what shows up in this service's structured logs.
+
+### Idempotency
+
+`POST /v1/events` accepts an optional `idempotency_key` (1-255
+characters). Resubmitting the same key for the same project returns the
+*original* `workload_id`/`estimate_id`/`status` with `idempotent_replay:
+true`, rather than creating a duplicate measurement or erroring. This is
+enforced by a database unique constraint on `(project_id,
+idempotency_key)`, not just an application-level check, so it is safe
+under concurrent retries (e.g. a network timeout followed by a client
+retry) - the loser of a race is transparently turned into a replay of
+the winner, never a 500 or a duplicate row. Idempotency keys are scoped
+per project; the same key in a different project is a different key.
+`/v1/estimate`, `/v1/batch-estimate`, `/v1/compare` and
+`/v1/benchmarks/run` are stateless and have no idempotency
+concept - nothing is persisted to replay.
+
+### Errors
+
+Every error response has the same shape:
+
+```json
+{
+  "error": {
+    "code": "MODEL_NOT_SUPPORTED",
+    "message": "The requested model is not currently supported.",
+    "request_id": "req_..."
+  }
+}
+```
+
+| Code | HTTP status | Meaning |
+|---|---|---|
+| `INVALID_REQUEST` | 400 | Malformed or oversized request (e.g. batch/candidate limit exceeded). |
+| `MISSING_PARAMETER` | 400 | A required parameter was omitted (e.g. `project_id` for an org-level key). |
+| `INVALID_DATE_RANGE` | 400 | `from` is after `to`, or the requested range/granularity exceeds bounds. |
+| `UNAUTHORIZED` | 401 | No `Authorization` header. |
+| `INVALID_API_KEY` | 401 | Unknown, malformed, or revoked key. |
+| `API_KEY_EXPIRED` | 401 | Key existed and was valid, but its `expires_at` has passed. |
+| `FORBIDDEN` | 403 | A project-scoped key targeted a different project explicitly. |
+| `NOT_FOUND` | 404 | Generic resource-not-found (organization/project/application/workload/estimate/API key). Opaque: never distinguishes "doesn't exist" from "belongs to another tenant." |
+| `PROVIDER_NOT_FOUND` | 404 | Unknown `provider`. |
+| `MODEL_NOT_FOUND` | 404 | Unknown `model` for that provider (or that `model_version`). |
+| `APPLICATION_NOT_FOUND` | 404 | Unknown application, or one outside the caller's organization. |
+| `BENCHMARK_NOT_FOUND` | 404 | Unknown `benchmark_id`. |
+| `MODEL_NOT_SUPPORTED` | 422 | Model is deprecated, or does not support the requested modality. |
+| `INVALID_WORKLOAD` | 422 | e.g. an activity_type/modality mismatch, or a zero-quantity text workload. |
+| `APPLICATION_PROJECT_MISMATCH` | 422 | The application exists in the caller's organization but a different project. |
+| `METHODOLOGY_UNAVAILABLE` | 200 | Reserved; not currently raised as an HTTP error - see `insufficient_data` status instead. |
+| `RATE_LIMITED` | 429 | Reserved for a future limiter; not currently enforced (see Known limitations). |
+| `INTERNAL_ERROR` | 500 | Unhandled server error. Never leaks a stack trace. |
+
+Note: a request that reaches Pydantic's own validation (a missing
+required field, a wrong type, an out-of-range value) returns FastAPI's
+standard `422` shape, which this API's global handler rewrites into the
+same `{"error": {...}}` envelope with code `INVALID_REQUEST` or
+`MISSING_PARAMETER`.
+
+### CORS
+
+`CORSMiddleware` is configured per `docs/ADR-012-console-authentication.md`:
+an explicit, environment-driven origin allowlist (`ALLOWED_ORIGINS`,
+comma-separated exact origins - never a wildcard), `allow_credentials`
+is always `False` (authentication is the `Authorization` header, never a
+cookie), and only `GET`/`POST`/`PATCH`/`OPTIONS` with
+`Authorization`/`Content-Type` headers are permitted. CORS fails closed:
+with `ALLOWED_ORIGINS` unset, no browser origin can call this API
+cross-origin at all. This exists to support a future browser-based
+Developer Console; it has no effect on server-to-server callers (SDKs,
+`curl`, backend integrations), which are never subject to CORS.
 
 ## Methodology principles
 
