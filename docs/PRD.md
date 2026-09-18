@@ -1,10 +1,10 @@
 # AI FOOTPRINT
 ## Product Requirements Document (PRD)
-### Version 0.4 — Foundation + Developer Platform + Resource Intelligence + Developer Experience + Adoption & Instrumentation
+### Version 0.5 — Foundation + Developer Platform + Resource Intelligence + Developer Experience + Adoption & Instrumentation + CLI
 
 **Product:** AI Footprint  
 **Working tagline:** Know the hidden resource impact of AI.  
-**Status:** Approved — Sprint 6 baseline  
+**Status:** Approved — Sprint 7 specification  
 
 ## 1. Executive Summary
 
@@ -866,3 +866,501 @@ Sprint 10+ — Integrations / Enterprise / broader adoption
 ~~~
 
 The platform must continue to expose one common AIWorkload and estimation foundation across every surface.
+
+
+## 39. Sprint 7 — CLI + Developer Workflow
+
+### 39.1 Objective
+
+Sprint 7 delivers the first command-line developer surface for AI Footprint. The CLI must make AI Footprint usable from terminals, local development environments and CI/CD workflows while remaining a thin client of the existing Python SDK and REST API.
+
+The strategic objective is:
+
+> Make AI Footprint measurable from the developer workflow itself, without creating a second instrumentation, authentication or estimation architecture.
+
+The CLI is an adoption surface, not a new measurement engine.
+
+### 39.2 Product evolution
+
+Sprint 7 extends the common Sprint 6 instrumentation foundation:
+
+~~~text
+Developer
+   |
+   v
+AI Footprint CLI
+   |
+   v
+Python SDK
+   |
+   v
+AI Footprint REST API
+   |
+   +--> AIWorkload
+   +--> Estimation Pipeline
+   +--> Usage Intelligence
+   +--> Resource Intelligence
+~~~
+
+The CLI must use the Sprint 6 `client_type=cli` client context and the existing canonical AIWorkload contract.
+
+### 39.3 Target users
+
+- AI developers
+- software engineers
+- platform/DevOps engineers
+- engineering teams using AI coding tools or agents
+- CI/CD and automation workflows
+- developers evaluating AI workload resource impact
+
+### 39.4 In scope
+
+1. Installable `aifootprint` CLI package.
+2. Top-level help and version commands.
+3. `aifootprint event` for persisted workload submission.
+4. `aifootprint estimate` for stateless workload estimation.
+5. `aifootprint usage` for usage intelligence inspection.
+6. `aifootprint compare` for existing provider/model comparison.
+7. `aifootprint benchmarks` for existing benchmark discovery and execution.
+8. API-key configuration through environment variables and a local developer configuration mechanism.
+9. Configurable API base URL.
+10. Human-readable terminal output.
+11. Machine-readable JSON output.
+12. Request ID visibility where returned by the SDK/API.
+13. Consistent CLI exit codes for success, validation, authentication/authorization, not-found, rate-limit and server/transport failures.
+14. Idempotency-key support for event ingestion.
+15. Automatic CLI client metadata using the Sprint 6 contract.
+16. CI/CD-friendly non-interactive operation.
+17. Documentation and examples for local development and automation.
+18. CLI unit/contract tests and packaging validation.
+
+### 39.5 Explicit command contract
+
+The initial command surface is:
+
+~~~text
+aifootprint --help
+aifootprint --version
+
+aifootprint event
+aifootprint estimate
+aifootprint usage
+aifootprint compare
+aifootprint benchmarks
+~~~
+
+Command names and flags must remain stable once published unless a documented breaking CLI change is required.
+
+### 39.6 Event command
+
+`aifootprint event` submits a canonical workload to `POST /v1/events`.
+
+It must support the existing workload dimensions required by the backend, including:
+
+- provider
+- model
+- optional model version
+- modality
+- activity type
+- input/output tokens where applicable
+- input/output characters where applicable
+- image dimensions/count where applicable
+- video duration/resolution where applicable
+- audio duration where applicable
+- tool calls
+- duration
+- project
+- application
+- metadata where supported
+- idempotency key
+
+The CLI automatically supplies client metadata equivalent to:
+
+~~~json
+{
+  "client_type": "cli",
+  "client_name": "aifootprint-cli",
+  "client_version": "<installed-version>",
+  "runtime": "<non-sensitive-runtime>"
+}
+~~~
+
+The CLI must not require or capture prompt/response content.
+
+### 39.7 Estimate command
+
+`aifootprint estimate` calls the existing stateless `POST /v1/estimate` endpoint.
+
+It must never perform footprint calculations locally.
+
+The command must preserve:
+
+- min/max ranges
+- metric status
+- confidence
+- evidence level
+- accounting boundary
+- methodology version
+- assumptions
+
+### 39.8 Usage command
+
+`aifootprint usage` consumes the existing usage APIs.
+
+Initial capabilities should include:
+
+~~~text
+aifootprint usage summary
+aifootprint usage by-provider
+aifootprint usage by-model
+aifootprint usage by-activity
+aifootprint usage by-application
+aifootprint usage timeseries
+~~~
+
+The CLI must preserve coverage and range semantics and must not replace ranges with averages or point estimates.
+
+Date-range and applicable project/application/provider/model/activity filters must map directly to existing API parameters.
+
+### 39.9 Compare command
+
+`aifootprint compare` calls `POST /v1/compare`.
+
+Each candidate remains independently represented.
+
+The CLI must not:
+
+- rank candidates
+- score candidates
+- declare a winner
+- label a candidate best/worst
+- recommend a model
+- reorder candidates
+
+It simply renders the API's measurements.
+
+### 39.10 Benchmarks command
+
+`aifootprint benchmarks` consumes the existing benchmark endpoints.
+
+Initial capabilities should include:
+
+~~~text
+aifootprint benchmarks list
+aifootprint benchmarks get <benchmark_id>
+aifootprint benchmarks run <benchmark_id>
+~~~
+
+Benchmark output must preserve version, workload definition, ranges, status, confidence and methodology information returned by the API.
+
+### 39.11 Authentication and configuration
+
+The CLI must support API authentication through the existing Python SDK.
+
+Required configuration precedence:
+
+1. explicit command-line option, where provided;
+2. environment variable;
+3. local CLI configuration;
+4. SDK/default behavior where applicable.
+
+At minimum support:
+
+~~~text
+AIFOOTPRINT_API_KEY
+AIFOOTPRINT_BASE_URL
+~~~
+
+Raw API keys must never be:
+
+- printed
+- included in normal command output
+- written to logs
+- embedded in URLs
+- included in exception messages
+- committed to source control
+
+The local configuration mechanism must use restrictive permissions where the operating system supports them.
+
+### 39.12 Output and automation
+
+Human-readable output is the default.
+
+A machine-readable JSON mode must be available consistently across commands, using a stable flag such as:
+
+~~~text
+--output table
+--output json
+~~~
+
+JSON output must represent the API response semantics without adding ranking, scoring or transformed point estimates.
+
+The CLI must support non-interactive execution suitable for CI/CD.
+
+No command should require a TTY for normal operation.
+
+### 39.13 Exit codes and errors
+
+The CLI must expose deterministic process exit codes.
+
+Initial categories:
+
+| Category | Exit code |
+|---|---:|
+| Success | 0 |
+| Invalid CLI input / API validation | 2 |
+| Authentication failure | 3 |
+| Authorization failure | 4 |
+| Not found | 5 |
+| Conflict / idempotency conflict | 6 |
+| Rate limited | 7 |
+| Server/API failure | 8 |
+| Network/transport failure | 9 |
+| Configuration error | 10 |
+
+The exact implementation may use a compact stable mapping, but the mapping must be documented and tested.
+
+Human-readable errors must include the API error message and request ID where available, but must never expose credentials.
+
+### 39.14 SDK architecture
+
+The CLI must call the existing `aifootprint` Python SDK.
+
+The CLI must not:
+
+- create a second HTTP client;
+- implement bearer authentication independently;
+- duplicate API error mapping;
+- calculate estimates;
+- contain environmental coefficients;
+- resolve methodology factors;
+- persist its own workload database;
+- invent a second idempotency mechanism.
+
+The Python SDK remains the REST boundary.
+
+### 39.15 Client context
+
+Every CLI-submitted event should identify the client surface using Sprint 6:
+
+~~~text
+client_type = cli
+client_name = aifootprint-cli
+client_version = installed CLI version
+runtime = non-sensitive runtime identifier
+~~~
+
+Client context is observational and must never affect authorization or estimation.
+
+### 39.16 Privacy
+
+The CLI must operate without collecting AI content.
+
+It must not automatically capture:
+
+- prompts
+- responses
+- source code
+- private files
+- private images
+- private audio/video
+- provider credentials
+
+Explicit user-supplied metadata remains subject to the existing workload metadata contract.
+
+### 39.17 CI/CD and scripting
+
+The CLI must be suitable for:
+
+- shell scripts
+- CI pipelines
+- GitHub Actions or equivalent automation
+- developer pre-commit/workflow integrations
+- scheduled measurement jobs
+
+Commands must return deterministic exit codes.
+
+JSON output must be parseable without terminal formatting or ANSI escape sequences.
+
+The CLI must not depend on interactive login for API-key based automation.
+
+### 39.18 Packaging and compatibility
+
+The CLI must be installable as a normal Python package.
+
+Target Python compatibility should remain aligned with the existing SDK:
+
+~~~text
+Python >= 3.10
+~~~
+
+The CLI version must be independently versioned from the AI Footprint API version.
+
+The CLI may depend on the existing SDK and a focused CLI argument/parsing library if justified. It must not introduce unnecessary runtime infrastructure.
+
+### 39.19 Documentation
+
+Documentation must include:
+
+- installation
+- configuration
+- first event submission
+- stateless estimation
+- usage inspection
+- comparison
+- benchmarks
+- JSON output
+- CI/CD usage
+- exit codes
+- privacy behavior
+- API-key security
+- client metadata behavior
+
+A new developer should be able to install the CLI and submit a first workload without reading backend source code.
+
+### 39.20 Testing requirements
+
+#### CLI unit tests
+
+- command discovery/help
+- argument validation
+- configuration precedence
+- missing configuration
+- output formatting
+- JSON output
+- exit-code mapping
+- credential redaction
+- client metadata generation
+- version reporting
+
+#### SDK integration/contract tests
+
+- CLI invokes SDK resources rather than raw HTTP
+- event payload includes `client_type=cli`
+- omitted optional values are not invented
+- request IDs propagate
+- API errors propagate correctly
+- idempotency key reaches the existing event API
+- no CLI-specific estimation path exists
+
+#### End-to-end
+
+At minimum validate:
+
+1. CLI → SDK → `/v1/events`
+2. CLI → SDK → `/v1/estimate`
+3. CLI → SDK → usage endpoint
+4. CLI → SDK → compare
+5. CLI → SDK → benchmarks
+6. authentication failure
+7. authorization failure
+8. invalid request
+9. rate-limit response
+10. server/transport failure
+11. JSON output
+12. non-interactive execution
+
+#### Regression
+
+- full backend suite
+- full SDK suite
+- frontend suite
+- Ruff
+- mypy
+- TypeScript/lint/build
+- Alembic validation
+- CLI package build/install validation
+
+### 39.21 Security requirements
+
+The implementation must demonstrate:
+
+1. no raw API-key persistence outside the explicitly documented local configuration mechanism;
+2. restrictive local configuration permissions where supported;
+3. no API key in process output;
+4. no API key in error messages;
+5. no API key in URLs;
+6. no credential logging;
+7. no prompt/response capture;
+8. client metadata cannot alter project or application authorization;
+9. CLI uses existing backend authorization;
+10. dependencies are kept minimal and security-scanned.
+
+### 39.22 Explicit non-goals
+
+Sprint 7 does not include:
+
+- Browser Extension
+- Chrome/Firefox extension distribution
+- iOS application
+- Android application
+- automatic provider traffic interception
+- provider credential capture
+- prompt/response storage
+- source-code indexing
+- new provider integrations
+- new environmental coefficients
+- new estimation algorithms
+- local footprint calculation
+- model ranking
+- scoring
+- recommendation engine
+- optimization
+- routing
+- billing
+- RBAC
+- SSO
+- enterprise gateway
+- Redis
+- Kafka
+- data warehouse
+- Kubernetes
+- new backend instrumentation endpoint
+- a second HTTP/authentication stack
+
+### 39.23 Definition of Done
+
+Sprint 7 is complete when:
+
+1. `aifootprint` installs successfully.
+2. Help and version commands work.
+3. Event submission works through the existing API.
+4. Stateless estimation works through the existing API.
+5. Usage inspection works.
+6. Compare works.
+7. Benchmarks work.
+8. CLI events carry `client_type=cli`.
+9. Configuration and authentication are documented and tested.
+10. JSON and human-readable output work.
+11. Exit codes are deterministic and documented.
+12. Request IDs are visible where available.
+13. API keys are not leaked.
+14. CLI is non-interactive and CI/CD friendly.
+15. CLI uses the Python SDK rather than a second HTTP client.
+16. No estimation logic or environmental factors are introduced.
+17. Existing backend, SDK and frontend behavior remains backward compatible.
+18. Full automated regression and CLI validation pass.
+19. CLI documentation enables a new developer to complete a first measurement without repository knowledge.
+
+### 39.24 Deliverables
+
+~~~text
+cli/
+  aifootprint CLI package
+  commands
+  configuration
+  output formatting
+  tests
+
+sdk/
+  only additive changes required for CLI integration
+
+docs/
+  Sprint 7 PRD/FRD updates
+  CLI Quick Start
+  CLI reference
+  CI/CD examples
+  security/privacy guidance
+~~~
+
+No Browser Extension or Mobile source tree is required in Sprint 7.
