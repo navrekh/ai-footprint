@@ -7,6 +7,15 @@ Every example below sends the exact same six requests three ways
 (`curl`, Python's `requests`, and JavaScript's `fetch`), so pick whichever
 matches how you'll actually integrate.
 
+> **About the JavaScript examples:** they run as shown in Node.js (or
+> any non-browser JS runtime), which isn't subject to browser CORS
+> restrictions. Pasted into an arbitrary browser tab's console instead,
+> they will be silently blocked unless that page's origin is explicitly
+> present in the API's `ALLOWED_ORIGINS` — this API's CORS policy
+> (`backend/footprint-api/README.md`'s "CORS" section) rejects
+> cross-origin browser requests from any other origin by design. Don't
+> expect these snippets to work from a random webpage's console.
+
 ## 0. Get a base URL
 
 This backend does not yet have a hosted, shared endpoint (see
@@ -49,15 +58,22 @@ bootstraps an Organization, a default Project, and your first API key in
 one call. **The `api_key.key` field is shown exactly once, in this
 response.** Save it now; the backend cannot show it to you again.
 
+> **Keep your API key safe.** Never commit it to source control, never
+> put it in a URL or query string, and never store it in a browser's
+> `localStorage`/`sessionStorage`. The commands below deliberately keep
+> the response in a shell variable only — nothing is written to a file
+> on disk, so there's nothing to accidentally `git add`.
+
 **curl**
 
 ```bash
-curl -s -X POST "$BASE_URL/v1/organizations" \
+SIGNUP=$(curl -s -X POST "$BASE_URL/v1/organizations" \
   -H "Content-Type: application/json" \
-  -d '{"name": "Acme Inc"}' | tee signup.json
+  -d '{"name": "Acme Inc"}')
+echo "$SIGNUP"
 
-export API_KEY=$(python3 -c "import json; print(json.load(open('signup.json'))['api_key']['key'])")
-export PROJECT_ID=$(python3 -c "import json; print(json.load(open('signup.json'))['project']['id'])")
+export API_KEY=$(echo "$SIGNUP" | python3 -c "import json,sys; print(json.load(sys.stdin)['api_key']['key'])")
+export PROJECT_ID=$(echo "$SIGNUP" | python3 -c "import json,sys; print(json.load(sys.stdin)['project']['id'])")
 ```
 
 **Python (`requests`)**
@@ -104,12 +120,13 @@ target developer journey includes it.
 **curl**
 
 ```bash
-curl -s -X POST "$BASE_URL/v1/applications" \
+APPLICATION=$(curl -s -X POST "$BASE_URL/v1/applications" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"name": "My First App"}' | tee application.json
+  -d '{"name": "My First App"}')
+echo "$APPLICATION"
 
-export APPLICATION_ID=$(python3 -c "import json; print(json.load(open('application.json'))['id'])")
+export APPLICATION_ID=$(echo "$APPLICATION" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
 ```
 
 **Python (`requests`)**
@@ -147,7 +164,7 @@ immediately. Every field below except `provider`/`model`/`modality`/
 **curl**
 
 ```bash
-curl -s -X POST "$BASE_URL/v1/events" \
+EVENT=$(curl -s -X POST "$BASE_URL/v1/events" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -160,9 +177,10 @@ curl -s -X POST "$BASE_URL/v1/events" \
     "input_tokens": 2000,
     "output_tokens": 1000,
     "idempotency_key": "quickstart-first-event"
-  }' | tee event.json
+  }')
+echo "$EVENT"
 
-export WORKLOAD_ID=$(python3 -c "import json; print(json.load(open('event.json'))['workload_id'])")
+export WORKLOAD_ID=$(echo "$EVENT" | python3 -c "import json,sys; print(json.load(sys.stdin)['workload_id'])")
 ```
 
 **Python (`requests`)**
