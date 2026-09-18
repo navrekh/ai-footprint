@@ -158,10 +158,19 @@ export function UsagePage() {
               ))}
             </Select>
           </Field>
-          <Field label="Application" htmlFor="usage-application">
+          <Field
+            label="Application"
+            htmlFor="usage-application"
+            hint={
+              dimension === "application"
+                ? 'Not applicable when viewing usage by application: that breakdown always groups every application.'
+                : undefined
+            }
+          >
             <Select
               id="usage-application"
               value={applicationId}
+              disabled={dimension === "application"}
               onChange={(event) => setApplicationId(event.target.value)}
             >
               <option value="">All applications</option>
@@ -253,6 +262,12 @@ export function UsagePage() {
           </div>
         </CardHeader>
         <CardContent>
+          {dimension === "application" ? (
+            <p className="mb-3 text-xs text-muted-foreground">
+              This breakdown groups every application in the selected period; the Application
+              filter above does not constrain it.
+            </p>
+          ) : null}
           {activeBreakdown.isPending ? (
             <TableSkeleton rows={4} columns={5} />
           ) : activeBreakdown.error ? (

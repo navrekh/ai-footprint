@@ -210,6 +210,63 @@ describe("UsagePage", () => {
     });
   });
 
+  it("disables the Application filter and explains why once By application is selected, without sending it as a query parameter", async () => {
+    connectSession(RAW_KEY);
+    const calls = mockApi([
+      ...baseRoutes().filter((r) => r.path !== "/v1/applications"),
+      {
+        path: "/v1/applications",
+        body: { items: [{ id: "app-1", name: "Application A" }], total: 1 },
+      },
+      {
+        path: "/v1/usage/by-application",
+        body: {
+          period: PERIOD,
+          items: [
+            {
+              application_id: "app-1",
+              application_name: "Application A",
+              workloads: BREAKDOWN_COUNTS,
+              energy: BREAKDOWN_RANGE,
+              water: BREAKDOWN_RANGE,
+              carbon: BREAKDOWN_RANGE,
+            },
+          ],
+          total: 1,
+        },
+      },
+    ]);
+    renderWithProviders(<UsagePage />);
+    await screen.findByText("openai");
+
+    // Normally available and enabled for the default (non-application) breakdown.
+    const applicationSelect = screen.getByLabelText("Application") as HTMLSelectElement;
+    expect(applicationSelect).not.toBeDisabled();
+    await within(applicationSelect).findByText("Application A");
+
+    fireEvent.change(applicationSelect, { target: { value: "app-1" } });
+    fireEvent.change(screen.getByLabelText("Breakdown dimension"), {
+      target: { value: "application" },
+    });
+    await screen.findByText("Application A");
+
+    // Field is now visibly non-applicable, but the previous selection is preserved
+    // (it still legitimately constrains Summary and Time series above).
+    expect(applicationSelect).toBeDisabled();
+    expect(applicationSelect.value).toBe("app-1");
+    expect(
+      screen.getByText('Not applicable when viewing usage by application: that breakdown always groups every application.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/This breakdown groups every application in the selected period/),
+    ).toBeInTheDocument();
+
+    // The actual request never carries the application filter, matching the backend contract.
+    const byApplicationCall = calls.find((c) => c.url.includes("/v1/usage/by-application"));
+    expect(byApplicationCall).toBeDefined();
+    expect(byApplicationCall?.url).not.toContain("application=");
+  });
+
   it("never sends the connected raw API key anywhere but the Authorization header", async () => {
     connectSession(RAW_KEY);
     const calls = mockApi(baseRoutes());
