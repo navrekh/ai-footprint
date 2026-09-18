@@ -1019,7 +1019,7 @@ The SDK and console are clients of the existing stateless APIs. Sprint 5 does no
 12. Range and measurement-coverage semantics are preserved. ✅ *(Sprint 5B/5D)*
 13. Request correlation is visible. ✅ *(Sprint 5B/5D — `result.request_id` in the SDK; request ID and HTTP status shown in the console's API Explorer)*
 14. Idempotency is documented and supported by the SDK. ✅ *(Sprint 5B)*
-15. Privacy and methodology behavior are clearly documented. ✅ *(Sprint 5B/5D — `sdk/README.md` and the console's expandable methodology/provenance panel, sourced from `GET /v1/methodology`)*
+15. Privacy and methodology behavior are clearly documented. ✅ *(Sprint 5B/5D — `sdk/README.md` and the console's response-scoped methodology details; the console does not join `GET /v1/methodology` into Compare/Benchmark responses.)*
 16. No new estimation path is introduced. ✅ *(Sprint 5B/5D)*
 17. No fabricated methodology data is introduced. ✅ *(Sprint 5B/5D)*
 18. Existing Sprint 1-4 functionality remains backward compatible. ✅ *(full backend regression suite passes unchanged after both Sprint 5B and Sprint 5D)*
