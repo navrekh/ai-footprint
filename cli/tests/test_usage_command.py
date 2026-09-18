@@ -176,3 +176,69 @@ def test_usage_filters_map_to_existing_query_parameters(httpx_mock, api_env):
     assert "activity_type=text_generation" in request_url
     assert "project=proj_1" in request_url
     assert "application=app_1" in request_url
+
+
+def test_invalid_from_date_is_a_cli_usage_error(httpx_mock, api_env, capsys):
+    """Regression test (P1): a malformed --from must not raise a raw
+    ValueError that bypasses the centralized exit-code mapping.
+    """
+    exit_code = main(["usage", "summary", "--from", "not-a-date"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "--from" in captured.err
+    assert captured.out == ""
+
+
+def test_invalid_to_date_is_a_cli_usage_error(httpx_mock, api_env, capsys):
+    exit_code = main(["usage", "summary", "--to", "not-a-date"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "--to" in captured.err
+    assert captured.out == ""
+
+
+def test_invalid_date_never_reaches_the_api(httpx_mock, api_env):
+    """No response is registered - if a request were actually made,
+    pytest-httpx would raise for an unmatched request instead of the
+    test passing.
+    """
+    main(["usage", "summary", "--from", "not-a-date"])
+
+    assert httpx_mock.get_requests() == []
+
+
+def test_invalid_date_with_json_output_still_goes_to_stderr_only(httpx_mock, api_env, capsys):
+    """--output json must not corrupt stdout with error text - stdout
+    stays empty/clean, matching the JSON contract even on failure.
+    """
+    exit_code = main(["usage", "summary", "--from", "not-a-date", "--output", "json"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert captured.out == ""
+    assert captured.err != ""
+
+
+def test_valid_iso8601_date_still_works(httpx_mock, api_env):
+    httpx_mock.add_response(
+        method="GET",
+        url=re.compile(r"http://testserver/v1/usage/summary.*"),
+        json={
+            "period": PERIOD,
+            "workloads": COUNTS,
+            "energy": RANGE,
+            "water": RANGE,
+            "carbon": RANGE,
+        },
+    )
+
+    exit_code = main(
+        ["usage", "summary", "--from", "2026-01-01T00:00:00", "--to", "2026-01-31T00:00:00"]
+    )
+
+    assert exit_code == 0
+    request_url = str(httpx_mock.get_requests()[0].url)
+    assert "from=2026-01-01T00%3A00%3A00" in request_url
+    assert "to=2026-01-31T00%3A00%3A00" in request_url

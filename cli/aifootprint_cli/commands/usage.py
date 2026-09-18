@@ -20,6 +20,7 @@ from aifootprint.models import (
     UsageTimeseriesResult,
 )
 
+from ..exit_codes import CliUsageError
 from ..output import format_range, format_workload_counts, print_json, print_request_id
 from ._shared import ACTIVITY_TYPES, add_global_options
 
@@ -35,8 +36,18 @@ def _add_common_filters(parser: argparse.ArgumentParser, *, application: bool) -
     parser.add_argument("--activity-type", default=None, choices=ACTIVITY_TYPES)
 
 
-def _parse_datetime(value: str | None) -> datetime | None:
-    return datetime.fromisoformat(value) if value else None
+def _parse_datetime(value: str | None, flag: str) -> datetime | None:
+    """Raises `CliUsageError` (exit code 2, per exit_codes.py) rather
+    than letting a raw `ValueError` escape - a malformed --from/--to is
+    invalid CLI input, detected before any API call is made, same as
+    a malformed --metadata/--candidate elsewhere in this package.
+    """
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise CliUsageError(f"Invalid {flag} value {value!r}: expected ISO 8601.") from exc
 
 
 def register(subparsers: argparse._SubParsersAction) -> None:
@@ -88,8 +99,8 @@ def register(subparsers: argparse._SubParsersAction) -> None:
 
 def run_summary(args: argparse.Namespace, client: AIClient) -> UsageSummary:
     return client.usage.summary(
-        from_=_parse_datetime(args.from_),
-        to=_parse_datetime(args.to),
+        from_=_parse_datetime(args.from_, "--from"),
+        to=_parse_datetime(args.to, "--to"),
         project_id=args.project_id,
         application_id=args.application_id,
         provider=args.provider,
@@ -100,8 +111,8 @@ def run_summary(args: argparse.Namespace, client: AIClient) -> UsageSummary:
 
 def run_by_provider(args: argparse.Namespace, client: AIClient) -> UsageByProviderResult:
     return client.usage.by_provider(
-        from_=_parse_datetime(args.from_),
-        to=_parse_datetime(args.to),
+        from_=_parse_datetime(args.from_, "--from"),
+        to=_parse_datetime(args.to, "--to"),
         project_id=args.project_id,
         application_id=args.application_id,
         provider=args.provider,
@@ -114,8 +125,8 @@ def run_by_provider(args: argparse.Namespace, client: AIClient) -> UsageByProvid
 
 def run_by_model(args: argparse.Namespace, client: AIClient) -> UsageByModelResult:
     return client.usage.by_model(
-        from_=_parse_datetime(args.from_),
-        to=_parse_datetime(args.to),
+        from_=_parse_datetime(args.from_, "--from"),
+        to=_parse_datetime(args.to, "--to"),
         project_id=args.project_id,
         application_id=args.application_id,
         provider=args.provider,
@@ -128,8 +139,8 @@ def run_by_model(args: argparse.Namespace, client: AIClient) -> UsageByModelResu
 
 def run_by_activity(args: argparse.Namespace, client: AIClient) -> UsageByActivityResult:
     return client.usage.by_activity(
-        from_=_parse_datetime(args.from_),
-        to=_parse_datetime(args.to),
+        from_=_parse_datetime(args.from_, "--from"),
+        to=_parse_datetime(args.to, "--to"),
         project_id=args.project_id,
         application_id=args.application_id,
         provider=args.provider,
@@ -142,8 +153,8 @@ def run_by_activity(args: argparse.Namespace, client: AIClient) -> UsageByActivi
 
 def run_by_application(args: argparse.Namespace, client: AIClient) -> UsageByApplicationResult:
     return client.usage.by_application(
-        from_=_parse_datetime(args.from_),
-        to=_parse_datetime(args.to),
+        from_=_parse_datetime(args.from_, "--from"),
+        to=_parse_datetime(args.to, "--to"),
         project_id=args.project_id,
         provider=args.provider,
         model=args.model,
@@ -156,8 +167,8 @@ def run_by_application(args: argparse.Namespace, client: AIClient) -> UsageByApp
 def run_timeseries(args: argparse.Namespace, client: AIClient) -> UsageTimeseriesResult:
     return client.usage.timeseries(
         granularity=args.granularity,
-        from_=_parse_datetime(args.from_),
-        to=_parse_datetime(args.to),
+        from_=_parse_datetime(args.from_, "--from"),
+        to=_parse_datetime(args.to, "--to"),
         project_id=args.project_id,
         application_id=args.application_id,
         provider=args.provider,
