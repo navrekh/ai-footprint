@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     # (sprint 4 FRD section 35.2)
     MAX_COMPARE_CANDIDATES: int = 10
 
+    # Developer Console CORS allowlist (ADR-012): a comma-separated list of
+    # exact origins, e.g. "http://localhost:5173,https://console.example.com".
+    # Empty by default - CORS fails closed until an operator explicitly
+    # configures the console's own origin(s) per environment. Never a
+    # wildcard, per ADR-012.
+    ALLOWED_ORIGINS: str = ""
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+
     @property
     def sync_database_url(self) -> str:
         """Synchronous (psycopg) equivalent of DATABASE_URL, used by Alembic."""
