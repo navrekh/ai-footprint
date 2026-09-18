@@ -363,6 +363,11 @@ console.log(compare);
   (`pip install -e ./sdk`) covering organizations, projects,
   applications, API keys, estimates, events, usage, compare, and
   benchmarks, so you don't have to hand-write the requests above.
+- **Command-line client:** `cli/README.md` — the `aifootprint` CLI
+  (`pip install -e ./cli`), a thin wrapper around the SDK above for
+  terminals, shell scripts, and CI/CD: `aifootprint event`,
+  `aifootprint estimate`, `aifootprint usage`, `aifootprint compare`,
+  `aifootprint benchmarks`.
 - **Full API reference:** `GET /docs` (Swagger UI) on your running
   instance, or `GET /openapi.json` for the raw schema — every endpoint,
   request/response shape, and possible error is documented there.
