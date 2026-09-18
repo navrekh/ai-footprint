@@ -100,6 +100,11 @@ export function BenchmarkDetailPage() {
                   ))}
                 </dl>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Additional methodology and provenance details are not exposed by this benchmark
+                definition endpoint. Confidence, evidence level, methodology version and
+                assumptions become available per candidate once you run the benchmark below.
+              </p>
             </CardContent>
           </Card>
 

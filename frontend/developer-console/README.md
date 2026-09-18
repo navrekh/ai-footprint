@@ -58,8 +58,13 @@ All requests carry `Authorization: Bearer <API_KEY>`.
 | Usage         | `GET /v1/usage/summary`, `/by-provider`, `/by-model`, `/by-activity`, `/by-application`, `/timeseries`          |
 | Compare       | `POST /v1/compare`                                                                                               |
 | Benchmarks    | `GET /v1/benchmarks`, `GET /v1/benchmarks/{benchmark_id}`, `POST /v1/benchmarks/run`                            |
-| Methodology   | `GET /v1/methodology` (bare array; used to resolve a result's `methodology_version` into its published limitations/sources) |
 | API Explorer  | `GET /openapi.json` (endpoint list) plus whichever endpoint the developer selects, all through the same client  |
+
+`GET /v1/methodology` is not called by the console: it is a separate
+registry endpoint, and no Usage/Compare/Benchmark response embeds a
+reference to it in a way the console can safely join without showing
+information that isn't actually part of that response. See "Resource-
+impact semantics" below.
 
 Errors follow the backend contract `{"error": {code, message, request_id}}`,
 with `X-Request-ID` on every response. The console maps 400/401/403/404/409/
@@ -112,19 +117,42 @@ than rendering nothing or misleading text.
 
 ## Resource-impact semantics
 
-Estimated resource impact is always presented as a range with confidence,
-coverage, methodology and provenance. The console never averages a
-minimum/maximum into a single figure, never fabricates activity, and never
-introduces scores, rankings, winners, or recommendations.
-
-This applies uniformly across Usage (aggregate ranges derived from
-persisted workloads), Compare (independent per-candidate ranges, rendered
-in the exact order `POST /v1/compare` returns them), and Benchmarks (the
-same independent-candidate rendering, reused from Compare, for
-`POST /v1/benchmarks/run`). `insufficient_data` renders as literal text,
-never as `0` or `N/A`; a `partial` aggregate always shows its
+Estimated resource impact is always presented as a range. The console
+never averages a minimum/maximum into a single figure, never fabricates
+activity, and never introduces scores, rankings, winners, or
+recommendations. `insufficient_data` renders as literal text, never as `0`
+or `N/A`; a `partial` aggregate always shows its
 `measured_workloads`/`total_workloads` completeness alongside the range,
-never silently implying full coverage.
+never silently implying full coverage. This applies uniformly across
+Usage, Compare, and Benchmarks (the latter two share one result-rendering
+component, `ComparisonResultCard`, specifically so this guarantee cannot
+diverge between them).
+
+**What's rendered is scoped exactly to what each response actually
+contains — nothing is inferred or joined in from elsewhere:**
+
+* **Usage** (`GET /v1/usage/*`) returns `status`/`min`/`max`/`unit` plus
+  workload-count completeness. It does not return `confidence` or
+  `methodology_version`, so the Usage UI does not display them.
+* **Compare / Benchmark run** (`POST /v1/compare`,
+  `POST /v1/benchmarks/run`) return, per candidate, ranges plus
+  `confidence`, `evidence_level`, `accounting_boundary`,
+  `methodology_version`, and `assumptions`. They do not return
+  `limitations` or source/provenance text — that only exists in the
+  separate `GET /v1/methodology` registry, keyed by version. The console
+  does not join that registry in here, because doing so would show
+  information that isn't actually part of the compare/benchmark
+  response; the expandable "Methodology & provenance" panel says so
+  explicitly rather than silently omitting the section.
+* **Benchmark definitions** (`GET /v1/benchmarks`,
+  `GET /v1/benchmarks/{id}`) return only `benchmark_id`, `version`,
+  `name`, `description`, `activity_type`, `modality`, and `parameters` —
+  no status/availability, normalization basis, methodology version,
+  assumptions, limitations, or provenance. The benchmark detail page
+  renders exactly those seven fields and says explicitly that richer
+  methodology/provenance detail isn't available until you run the
+  benchmark (at which point it comes from the run response, per
+  candidate, as above).
 
 ## API Explorer design note
 

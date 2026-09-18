@@ -6,7 +6,6 @@ import {
   applicationsApi,
   benchmarksApi,
   compareApi,
-  methodologyApi,
   organizationsApi,
   projectsApi,
   usageApi,
@@ -49,7 +48,6 @@ export const queryKeys = {
   benchmarks: (activityType?: string, modality?: string) =>
     ["benchmarks", { activityType, modality }] as const,
   benchmark: (id: string) => ["benchmark", id] as const,
-  methodology: ["methodology"] as const,
 };
 
 const LIST_LIMIT = 200;
@@ -264,19 +262,6 @@ export function useBenchmark(benchmarkId: string | undefined) {
 export function useRunBenchmark() {
   return useMutation({
     mutationFn: (payload: BenchmarkRunRequest) => benchmarksApi.run(payload),
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Methodology registry (GET /v1/methodology) — public, used to resolve a
-// result's methodology_version into its assumptions/limitations/sources.
-// ---------------------------------------------------------------------------
-
-export function useMethodology() {
-  return useQuery({
-    queryKey: queryKeys.methodology,
-    queryFn: () => methodologyApi.list(),
-    staleTime: 5 * 60_000,
   });
 }
 

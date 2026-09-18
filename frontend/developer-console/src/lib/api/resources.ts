@@ -14,7 +14,6 @@ import type {
   CompareResponse,
   ListParams,
   ListResponse,
-  Methodology,
   Organization,
   Project,
   ProjectCreate,
@@ -146,10 +145,6 @@ export const benchmarksApi = {
       path: `${V1}/benchmarks/run`,
       body: payload,
     }),
-};
-
-export const methodologyApi = {
-  list: () => apiRequest<Methodology[]>({ path: `${V1}/methodology` }),
 };
 
 /**

@@ -367,19 +367,3 @@ export interface BenchmarkRunResponse {
   activity_type: string;
   results: ComparisonResultItem[];
 }
-
-// ---------------------------------------------------------------------------
-// Methodology registry (backend/footprint-api/app/schemas/methodology.py) —
-// GET /v1/methodology returns a bare array, not a {items,total} wrapper.
-// ---------------------------------------------------------------------------
-
-export interface Methodology {
-  id: string;
-  version: string;
-  description: string;
-  effective_date: string;
-  sources: string[];
-  assumptions: string[];
-  limitations: string[];
-  created_at: string;
-}

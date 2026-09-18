@@ -1,17 +1,17 @@
-import { useMethodology } from "@/hooks/queries";
 import type { EstimateResponse } from "@/types/api";
 
 /**
  * "Where did this number come from?" — an expandable panel rather than
- * cluttering the main view. Renders only what the API actually returned:
- * the estimate's own confidence/evidence/assumptions, cross-referenced
- * against GET /v1/methodology (by methodology_version) for the published
- * sources/limitations text. Nothing here is authored in the frontend.
+ * cluttering the main view. Renders only fields present on this specific
+ * estimate response (confidence, evidence level, accounting boundary,
+ * methodology version, assumptions). The compare/benchmark-run contract
+ * does not include limitations or source provenance on the estimate
+ * itself — a separate GET /v1/methodology registry has those fields for
+ * some versions, but joining it in here would show information that
+ * isn't actually part of this response, so this panel deliberately does
+ * not do that join. Nothing here is authored in the frontend.
  */
 export function EstimateDetails({ estimate }: { estimate: EstimateResponse }) {
-  const methodology = useMethodology();
-  const published = methodology.data?.find((m) => m.version === estimate.methodology_version);
-
   return (
     <details className="group rounded-[var(--radius-console)] border border-border bg-surface-raised/50">
       <summary className="cursor-pointer select-none px-4 py-2.5 text-sm font-medium text-foreground marker:content-none">
@@ -62,36 +62,9 @@ export function EstimateDetails({ estimate }: { estimate: EstimateResponse }) {
           </div>
         ) : null}
 
-        {published ? (
-          <>
-            {published.limitations.length > 0 ? (
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Limitations
-                </p>
-                <ul className="mt-1 list-disc space-y-0.5 pl-4 text-sm text-foreground">
-                  {published.limitations.map((limitation) => (
-                    <li key={limitation}>{limitation}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {published.sources.length > 0 ? (
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Sources</p>
-                <ul className="mt-1 list-disc space-y-0.5 pl-4 text-sm text-foreground">
-                  {published.sources.map((source) => (
-                    <li key={source} className="break-all">
-                      {source}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </>
-        ) : methodology.isPending ? (
-          <p className="text-xs text-muted-foreground">Loading published methodology…</p>
-        ) : null}
+        <p className="text-xs text-muted-foreground">
+          Limitations and source provenance are not included in this response.
+        </p>
       </div>
     </details>
   );
