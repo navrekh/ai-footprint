@@ -46,12 +46,21 @@ async function parseErrorBody(
   }
 }
 
+export interface RequestResult<T> {
+  data: T;
+  status: number;
+  requestId: string | null;
+}
+
 /**
- * Single entry point for every console -> AI Footprint API call.
- * Adds the bearer Authorization header, surfaces request IDs, and never
- * logs headers, credentials, or key material.
+ * Performs one request and resolves every detail a caller might need —
+ * parsed body, HTTP status, and request ID. `apiRequest` (below) is the
+ * narrow, existing surface almost every caller uses; `apiRequestWithMeta`
+ * exposes the same underlying call for the one caller that needs the raw
+ * status (the API Explorer) — there is still exactly one fetch
+ * implementation, one Authorization/session/error path, and one client.
  */
-export async function apiRequest<T>(options: RequestOptions): Promise<T> {
+async function performRequest<T>(options: RequestOptions): Promise<RequestResult<T>> {
   const baseUrl = options.credentials?.baseUrl ?? getApiBaseUrl();
   const apiKey = options.credentials?.apiKey ?? getApiKey();
 
@@ -105,10 +114,13 @@ export async function apiRequest<T>(options: RequestOptions): Promise<T> {
     });
   }
 
-  if (response.status === 204) return undefined as T;
+  if (response.status === 204) {
+    return { data: undefined as T, status: response.status, requestId: headerRequestId };
+  }
 
   try {
-    return (await response.json()) as T;
+    const data = (await response.json()) as T;
+    return { data, status: response.status, requestId: headerRequestId };
   } catch {
     throw new ApiError({
       status: response.status,
@@ -117,4 +129,20 @@ export async function apiRequest<T>(options: RequestOptions): Promise<T> {
       requestId: headerRequestId,
     });
   }
+}
+
+/**
+ * Single entry point for every console -> AI Footprint API call.
+ * Adds the bearer Authorization header, surfaces request IDs, and never
+ * logs headers, credentials, or key material.
+ */
+export async function apiRequest<T>(options: RequestOptions): Promise<T> {
+  const result = await performRequest<T>(options);
+  return result.data;
+}
+
+/** Same request/auth/error path as `apiRequest`, but also resolves the
+ * HTTP status — used only by the API Explorer, which must display it. */
+export async function apiRequestWithMeta<T>(options: RequestOptions): Promise<RequestResult<T>> {
+  return performRequest<T>(options);
 }
