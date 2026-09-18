@@ -272,12 +272,23 @@ counts, measurement coverage, and additive energy/water/carbon ranges
 for the trailing 30 days by default — never a false point estimate, and
 never silently treating an unmeasured workload as zero impact.
 
-## 5. Compare workloads across providers
+## 5. Compare a workload across candidates
 
 `POST /v1/compare` runs the *same* workload definition through multiple
-provider/model candidates independently. Every candidate keeps its own
-range, status, confidence, and methodology version — the response never
-declares a "winner" or "best" model. You decide.
+provider/model candidates, each evaluated **independently**. Every
+candidate keeps its own range, status, confidence, and methodology
+version in the response — nothing is aggregated across candidates, and
+the response never declares a "winner," "best," or recommended model.
+You decide.
+
+The example below sends the same `test-only-demo-model` candidate
+twice, purely to demonstrate the request/response contract without
+requiring a second seeded model. It is **not** a real cross-provider
+comparison — it exists only to show the shape of the response you'd get
+back. A genuine comparison across different providers/models requires
+distinct candidates that each have available methodology data (e.g. two
+real models seeded with approved factors); with only the `TEST_ONLY`
+demo model available locally, that isn't possible in this walkthrough.
 
 **curl**
 
@@ -339,10 +350,6 @@ const compare = await fetch(`${BASE_URL}/v1/compare`, {
 }).then((r) => r.json());
 console.log(compare);
 ```
-
-(A real comparison across two genuinely different providers/models
-needs methodology factors for both — this walkthrough reuses the one
-seeded `TEST_ONLY` model twice just to show the shape of the response.)
 
 ## Where to go next
 
