@@ -831,7 +831,7 @@ Comparison and benchmark execution are stateless; Sprint 4 introduces no compari
 
 Sprint 5 makes AI Footprint usable by an external developer without requiring knowledge of the internal repository or estimation-engine implementation. The primary outcome is developer usability, not additional estimation capability. This section defines the target architecture and requirements for that productization work.
 
-**Implementation status:** Sprint 5B delivered the Python SDK (§36.7) against this specification. §36.8-36.13 (developer console, API Explorer, and their UI-specific requirements) remain a specification for a future implementation sub-phase and are not yet implemented; the rest of this section (§36.1-36.6, §36.14-36.16) describes the existing API contract the SDK was built against and continues to apply unchanged.
+**Implementation status:** Sprint 5B delivered the Python SDK (§36.7) against this specification. Sprint 5C delivered the developer console foundation (§36.8: Dashboard, Projects, Applications, API Keys, and the session/auth architecture) and Sprint 5D delivered Usage, Compare, Benchmarks, and the API Explorer (§36.9-36.12) within that console. §36.1-36.6 and §36.14-36.16 describe the existing API contract this work was built against and continue to apply unchanged; only the in-console Documentation page remains unimplemented.
 
 ### 36.1 System Architecture
 
@@ -999,7 +999,7 @@ The SDK and console are clients of the existing stateless APIs. Sprint 5 does no
 
 **API:** existing endpoint contract regression, OpenAPI schema validation.
 
-**Console (not yet implemented):** authentication, project/application selection, API key handling, API Explorer request execution, usage rendering, range rendering, insufficient-data rendering, compare candidate independence.
+**Console (delivered, Sprint 5C + 5D):** authentication/session/connect flow, project/application selection and API-key-scope handling (`connectedKey.ts`), API Explorer endpoint selection and request execution against the live `GET /openapi.json`, usage summary/breakdown/timeseries rendering, range rendering (never collapsed to a point value, insufficient-data rendered explicitly), and compare/benchmark candidate independence (order preservation, no ranking) — covered by component tests under `frontend/developer-console/src/pages/*.test.tsx` and `src/components/**/*.test.tsx` using mocked API responses, with dedicated regression tests for each of these invariants and for API-key non-exposure.
 
 **Security:** no API-key leakage, tenant isolation, project isolation, backend authorization enforcement.
 
@@ -1010,23 +1010,23 @@ The SDK and console are clients of the existing stateless APIs. Sprint 5 does no
 3. Quick Start is usable by a new developer. *(Sprint 5A; updated in Sprint 5B to reference the SDK)*
 4. Official Python SDK is available. ✅ *(Sprint 5B)*
 5. SDK contains no estimation logic. ✅ *(Sprint 5B)*
-6. Developer console is functional. — not yet implemented.
-7. API Explorer can execute authenticated API calls. — not yet implemented.
-8. Projects, applications and API keys are usable from the console. — not yet implemented (usable from the SDK; no console yet).
-9. Usage can be viewed using existing usage APIs. ✅ *(Sprint 5B, via the SDK; no console UI yet)*
-10. Compare can be executed/viewed. ✅ *(Sprint 5B, via the SDK; no console UI yet)*
-11. Benchmarks can be executed/viewed. ✅ *(Sprint 5B, via the SDK; no console UI yet)*
-12. Range and measurement-coverage semantics are preserved. ✅ *(Sprint 5B)*
-13. Request correlation is visible. ✅ *(Sprint 5B — `result.request_id` / `exception.request_id`)*
+6. Developer console is functional. ✅ *(Sprint 5C)*
+7. API Explorer can execute authenticated API calls. ✅ *(Sprint 5D — via the live `GET /openapi.json`, same session as every other page)*
+8. Projects, applications and API keys are usable from the console. ✅ *(Sprint 5C)*
+9. Usage can be viewed using existing usage APIs. ✅ *(Sprint 5B via the SDK; Sprint 5D via the console UI)*
+10. Compare can be executed/viewed. ✅ *(Sprint 5B via the SDK; Sprint 5D via the console UI)*
+11. Benchmarks can be executed/viewed. ✅ *(Sprint 5B via the SDK; Sprint 5D via the console UI, including a benchmark detail page and run action)*
+12. Range and measurement-coverage semantics are preserved. ✅ *(Sprint 5B/5D)*
+13. Request correlation is visible. ✅ *(Sprint 5B/5D — `result.request_id` in the SDK; request ID and HTTP status shown in the console's API Explorer)*
 14. Idempotency is documented and supported by the SDK. ✅ *(Sprint 5B)*
-15. Privacy and methodology behavior are clearly documented. ✅ *(Sprint 5B, in `sdk/README.md`)*
-16. No new estimation path is introduced. ✅ *(Sprint 5B)*
-17. No fabricated methodology data is introduced. ✅ *(Sprint 5B)*
-18. Existing Sprint 1-4 functionality remains backward compatible. ✅ *(Sprint 5B — full backend regression suite passes unchanged)*
-19. Automated tests pass. ✅ *(Sprint 5B — SDK unit + integration + backend contract-drift tests)*
-20. Lint/type checks pass. ✅ *(Sprint 5B — `ruff`/`mypy` clean on both the SDK and the backend)*
+15. Privacy and methodology behavior are clearly documented. ✅ *(Sprint 5B/5D — `sdk/README.md` and the console's expandable methodology/provenance panel, sourced from `GET /v1/methodology`)*
+16. No new estimation path is introduced. ✅ *(Sprint 5B/5D)*
+17. No fabricated methodology data is introduced. ✅ *(Sprint 5B/5D)*
+18. Existing Sprint 1-4 functionality remains backward compatible. ✅ *(full backend regression suite passes unchanged after both Sprint 5B and Sprint 5D)*
+19. Automated tests pass. ✅ *(SDK unit + integration + backend contract-drift tests; console component tests for Usage/Compare/Benchmarks/API Explorer)*
+20. Lint/type checks pass. ✅ *(`ruff`/`mypy` clean on backend and SDK; `tsc`/`eslint` clean on the console)*
 
-Sprint 5 as a whole remains incomplete until items 6-8 and 10-11's console UI are delivered in a future sub-phase.
+Sprint 5 is complete as specified in this document. Only the in-console Documentation page (an explicit non-goal boundary of Sprint 5D) remains a placeholder for a future sub-phase.
 
 ## 37. Overall MVP Definition of Done
 

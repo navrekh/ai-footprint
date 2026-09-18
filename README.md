@@ -12,6 +12,7 @@ as a fabricated exact measurement.
 
 - [`backend/footprint-api/`](backend/footprint-api/) — the FastAPI backend: estimation engine, persistence, usage intelligence, and the REST API. See its own `README.md` for setup and the sprint-by-sprint delivery history.
 - [`sdk/`](sdk/) — the official Python SDK (`aifootprint`): a thin, typed REST client with no estimation logic of its own. See its own `README.md` for a Quick Start.
+- [`frontend/developer-console/`](frontend/developer-console/) — the developer console (React/TypeScript): connect an API key and browse Dashboard, Projects, Applications, API Keys, Usage, Compare, Benchmarks, and an API Explorer, all consuming the same REST API as the SDK. See its own `README.md` for setup and security architecture (ADR-012).
 - [`docs/`](docs/) — product requirements, functional requirements, architecture, and methodology documentation.
 - [`data/`](data/) — methodology reference data.
 

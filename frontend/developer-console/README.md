@@ -55,6 +55,11 @@ All requests carry `Authorization: Bearer <API_KEY>`.
 | Projects      | `GET /v1/projects`, `POST /v1/projects`, `GET /v1/projects/{project_id}`, `PATCH /v1/projects/{project_id}`      |
 | Applications  | `GET /v1/applications`, `POST /v1/applications`, `GET /v1/applications/{application_id}`, `PATCH /v1/applications/{application_id}` |
 | API keys      | `GET /v1/api-keys`, `POST /v1/api-keys`, `POST /v1/api-keys/{api_key_id}/revoke`                                |
+| Usage         | `GET /v1/usage/summary`, `/by-provider`, `/by-model`, `/by-activity`, `/by-application`, `/timeseries`          |
+| Compare       | `POST /v1/compare`                                                                                               |
+| Benchmarks    | `GET /v1/benchmarks`, `GET /v1/benchmarks/{benchmark_id}`, `POST /v1/benchmarks/run`                            |
+| Methodology   | `GET /v1/methodology` (bare array; used to resolve a result's `methodology_version` into its published limitations/sources) |
+| API Explorer  | `GET /openapi.json` (endpoint list) plus whichever endpoint the developer selects, all through the same client  |
 
 Errors follow the backend contract `{"error": {code, message, request_id}}`,
 with `X-Request-ID` on every response. The console maps 400/401/403/404/409/
@@ -112,22 +117,47 @@ coverage, methodology and provenance. The console never averages a
 minimum/maximum into a single figure, never fabricates activity, and never
 introduces scores, rankings, winners, or recommendations.
 
+This applies uniformly across Usage (aggregate ranges derived from
+persisted workloads), Compare (independent per-candidate ranges, rendered
+in the exact order `POST /v1/compare` returns them), and Benchmarks (the
+same independent-candidate rendering, reused from Compare, for
+`POST /v1/benchmarks/run`). `insufficient_data` renders as literal text,
+never as `0` or `N/A`; a `partial` aggregate always shows its
+`measured_workloads`/`total_workloads` completeness alongside the range,
+never silently implying full coverage.
+
+## API Explorer design note
+
+The explorer does not embed the backend's Swagger UI (`GET /docs`),
+because Swagger UI persists whatever bearer token a user enters into its
+own `localStorage` by default — a direct ADR-012 violation (sessionStorage
+only). Instead it fetches the backend's own generated `GET /openapi.json`
+to enumerate endpoints, parameters, and request-body examples (so the
+endpoint list is never hand-duplicated and can never drift from the real
+contract), and executes every request through the same `apiRequest`
+client every other page uses — same Authorization-header injection, same
+`credentials: "omit"`, same 401-clears-session handling. The connected
+raw key is never rendered; the explorer only ever displays
+`Authorization: Bearer ••••••••`.
+
 ## Structure
 
 ```
 src/
-├── components/      shared UI and dialogs (components/ui = primitives)
+├── components/      shared UI and dialogs (components/ui = primitives,
+│                      components/resource = range/estimate/candidate
+│                      display shared by Usage, Compare and Benchmarks)
 ├── layouts/         console shell
 ├── pages/           route-level screens
 ├── hooks/           session + TanStack Query hooks
 ├── types/           API contract types
 └── lib/
-    ├── api/         centralized client and resource calls
+    ├── api/         centralized client, resource calls, OpenAPI helper
     ├── auth/        sessionStorage credential handling
     ├── errors/      error contract mapping
     └── utils/
 ```
 
-Sprint scope: Dashboard, Projects, Project detail, Applications and API Keys
-are implemented. Usage, Compare, Benchmarks, API Explorer and Documentation
-are navigable placeholders.
+Sprint scope: Dashboard, Projects, Project detail, Applications, API Keys,
+Usage, Compare, Benchmarks (list, detail, run) and the API Explorer are
+implemented (Sprint 5C + 5D). Documentation remains a navigable placeholder.

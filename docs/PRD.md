@@ -452,7 +452,7 @@ Sprint 4 does not add real provider/model environmental factors. Production meth
 
 The product objective of Sprint 5 is to make AI Footprint usable by an external developer without requiring knowledge of the internal repository or estimation-engine implementation. The primary Sprint 5 outcome is developer usability, not additional estimation capability.
 
-**Implementation status:** Sprint 5 was delivered in sub-phases. Sprint 5A (developer API productization: OpenAPI/reference documentation, request correlation, CORS) and Sprint 5B (the official Python SDK, described below) are implemented. The developer console and API Explorer described later in this section remain a specification for a future sub-phase and are not yet implemented.
+**Implementation status:** Sprint 5 was delivered in sub-phases. Sprint 5A (developer API productization: OpenAPI/reference documentation, request correlation, CORS), Sprint 5B (the official Python SDK, described below), Sprint 5C (the developer console foundation: Dashboard, Projects, Applications, API Keys, session/auth architecture per ADR-012), and Sprint 5D (Usage, Compare, Benchmarks, and the API Explorer within that console) are implemented. Only the in-console Documentation section described later in this section remains a specification for a future sub-phase.
 
 Target developer journey:
 
@@ -508,9 +508,9 @@ The client class is named `AIClient` rather than the `AI` used in this section's
 
 ### Developer console and API Explorer
 
-A minimal developer console (Dashboard, Projects, Applications, API Keys, Usage, Compare, API Explorer, Documentation) prioritizing developer onboarding and API usability over enterprise analytics. The API Explorer lets a developer choose an endpoint, provide/select an API key, construct a request, execute it, and inspect the response, request_id, and any errors.
+**Delivered across Sprint 5C and Sprint 5D.** A minimal developer console (Dashboard, Projects, Applications, API Keys — Sprint 5C; Usage, Compare, Benchmarks, API Explorer — Sprint 5D; Documentation remains a placeholder) prioritizing developer onboarding and API usability over enterprise analytics. The delivered API Explorer authenticates through the console's existing session (no separate key entry) and derives its endpoint list from the backend's own `GET /openapi.json` rather than a hand-maintained duplicate, executing every request through the same client every other page uses; a developer chooses an endpoint, supplies path/query parameters and a request body where applicable, executes it, and inspects the formatted response, HTTP status, request ID, and any errors.
 
-The usage overview and compare/benchmark UI must preserve measurement coverage, min/max ranges, confidence, and insufficient-data states exactly as the underlying APIs report them, and must never convert a range into a false point estimate. The compare/benchmark UI must not introduce a winner, best model, score, ranking, or recommendation — it presents measurements and methodology information only.
+The delivered usage overview and compare/benchmark UI preserve measurement coverage, min/max ranges, confidence, and insufficient-data states exactly as the underlying APIs report them, and never convert a range into a false point estimate. The compare/benchmark UI introduces no winner, best model, score, ranking, or recommendation — it presents measurements and methodology information only, with the Compare and Benchmarks result views sharing one rendering component specifically so this guarantee cannot silently diverge between the two.
 
 ### Privacy and idempotency
 
