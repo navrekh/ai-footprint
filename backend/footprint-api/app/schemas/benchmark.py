@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import ActivityType, Modality
 from app.schemas.common import ComparisonCandidate
@@ -21,6 +21,18 @@ class BenchmarkListResponse(BaseModel):
 
 
 class BenchmarkRunRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "benchmark_id": "text_generation_standard",
+                "candidates": [
+                    {"provider": "openai", "model": "model-id"},
+                    {"provider": "anthropic", "model": "model-id"},
+                ],
+            }
+        }
+    )
+
     benchmark_id: str
     candidates: list[ComparisonCandidate] = Field(min_length=2)
 

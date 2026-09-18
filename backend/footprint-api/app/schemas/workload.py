@@ -8,6 +8,19 @@ from app.models.enums import ActivityType, Modality, validate_activity_type_moda
 class WorkloadInput(BaseModel):
     """Shared request shape for /v1/estimate, /v1/events and /v1/batch-estimate items."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "provider": "openai",
+                "model": "model-id",
+                "modality": "text",
+                "activity_type": "text_generation",
+                "input_tokens": 2000,
+                "output_tokens": 1000,
+            }
+        }
+    )
+
     provider: str = Field(min_length=1)
     model: str = Field(min_length=1)
     model_version: str | None = Field(
@@ -47,6 +60,22 @@ class WorkloadInput(BaseModel):
 
 
 class EventCreateRequest(WorkloadInput):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "provider": "openai",
+                "model": "model-id",
+                "modality": "text",
+                "activity_type": "text_generation",
+                "input_tokens": 2000,
+                "output_tokens": 1000,
+                "project_id": "proj_01hxyzabc123",
+                "application_id": "app_01hxyzabc123",
+                "idempotency_key": "checkout-session-8f3e2c1a",
+            }
+        }
+    )
+
     timestamp: datetime | None = None
     parent_workload_id: str | None = None
     project_id: str | None = Field(
@@ -76,6 +105,18 @@ class EventCreateRequest(WorkloadInput):
 
 
 class EventCreateResponse(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "event_id": "wl_01hxyzabc123",
+                "workload_id": "wl_01hxyzabc123",
+                "estimate_id": "est_01hxyzabc123",
+                "status": "measured",
+                "idempotent_replay": False,
+            }
+        }
+    )
+
     event_id: str  # kept for Sprint 1 compatibility; identical to workload_id
     workload_id: str
     estimate_id: str

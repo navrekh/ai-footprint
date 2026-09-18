@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import Confidence
 from app.schemas.common import MetricRange
@@ -8,6 +8,23 @@ from app.schemas.common import MetricRange
 
 class EstimateResponse(BaseModel):
     """Stateless estimate response (POST /v1/estimate, /v1/batch-estimate items)."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "estimate_id": "est_01hxyzabc123",
+                "energy": {"status": "ok", "min": 0.31, "max": 0.42, "unit": "Wh"},
+                "water": {"status": "ok", "min": 0.28, "max": 0.35, "unit": "mL"},
+                "carbon": {"status": "ok", "min": 0.04, "max": 0.06, "unit": "gCO2e"},
+                "confidence": "medium",
+                "evidence_level": 3,
+                "accounting_boundary": "B",
+                "methodology_version": "0.1",
+                "assumptions": ["Location-based grid emissions factor."],
+                "created_at": "2026-01-01T00:00:00Z",
+            }
+        }
+    )
 
     estimate_id: str
     energy: MetricRange

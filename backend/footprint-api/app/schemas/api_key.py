@@ -4,6 +4,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ApiKeyCreateRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"name": "CI Key", "project_id": "proj_01hxyzabc123"}}
+    )
+
     name: str = Field(min_length=1, max_length=255)
     project_id: str | None = Field(
         default=None,

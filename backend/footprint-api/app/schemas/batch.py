@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.common import AggregateMetricRange, ErrorDetail
 from app.schemas.estimate import EstimateResponse
@@ -6,6 +6,31 @@ from app.schemas.workload import WorkloadInput
 
 
 class BatchEstimateRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "workloads": [
+                    {
+                        "provider": "openai",
+                        "model": "model-id",
+                        "modality": "text",
+                        "activity_type": "text_generation",
+                        "input_tokens": 2000,
+                        "output_tokens": 1000,
+                    },
+                    {
+                        "provider": "anthropic",
+                        "model": "model-id",
+                        "modality": "text",
+                        "activity_type": "text_generation",
+                        "input_tokens": 1500,
+                        "output_tokens": 800,
+                    },
+                ]
+            }
+        }
+    )
+
     workloads: list[WorkloadInput] = Field(min_length=1)
 
 

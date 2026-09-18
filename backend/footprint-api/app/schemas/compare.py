@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.enums import ActivityType, Modality, validate_activity_type_modality
 from app.schemas.common import ComparisonCandidate, ErrorDetail, NormalizedResourceIntensity
@@ -16,6 +16,21 @@ class CompareRequest(BaseModel):
     redundant top-level provider/model field a caller could set
     inconsistently with their candidate list.
     """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "modality": "text",
+                "activity_type": "text_generation",
+                "input_tokens": 2000,
+                "output_tokens": 1000,
+                "candidates": [
+                    {"provider": "openai", "model": "model-id"},
+                    {"provider": "anthropic", "model": "model-id"},
+                ],
+            }
+        }
+    )
 
     modality: Modality
     activity_type: ActivityType
