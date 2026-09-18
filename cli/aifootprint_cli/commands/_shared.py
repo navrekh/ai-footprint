@@ -135,5 +135,23 @@ def parse_candidate(raw: str) -> dict:
     return candidate
 
 
+#: Both `compare` and `benchmarks run` evaluate the same workload
+#: independently against multiple candidates - a single candidate has
+#: nothing to compare against (Sprint 7 PRD/FRD).
+MIN_CANDIDATES = 2
+
+
 def parse_candidates(raw_values: list[str]) -> list[dict]:
+    """Enforced here - the one shared call site both `compare.py` and
+    `benchmarks.py` already use - rather than duplicated in each
+    command module. Raising before returning means the caller's
+    `client.compare.create(candidates=parse_candidates(...), ...)` /
+    `client.benchmarks.run(id, parse_candidates(...))` never
+    constructs its keyword arguments successfully, so the SDK call
+    itself is never reached and no HTTP request is made.
+    """
+    if len(raw_values) < MIN_CANDIDATES:
+        raise CliUsageError(
+            f"--candidate requires at least {MIN_CANDIDATES} values, got {len(raw_values)}."
+        )
     return [parse_candidate(value) for value in raw_values]

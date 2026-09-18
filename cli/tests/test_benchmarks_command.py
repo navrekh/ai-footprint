@@ -147,3 +147,48 @@ def test_run_never_shows_ranking_vocabulary(httpx_mock, api_env, capsys):
 def test_run_requires_candidates():
     exit_code = main(["benchmarks", "run", "b1"])
     assert exit_code == 2
+
+
+def test_run_with_one_candidate_is_a_cli_usage_error(httpx_mock, capsys):
+    """P1 regression: `action='append', required=True` alone only
+    enforces >=1 candidate, not the required >=2 - the minimum count
+    must be enforced by parse_candidates() itself.
+    """
+    exit_code = main(["benchmarks", "run", "b1", "--candidate", "openai:a"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "at least 2" in captured.err
+
+
+def test_run_with_one_candidate_makes_no_http_request(httpx_mock):
+    """No response is registered - if a request were actually made,
+    pytest-httpx would raise for an unmatched request instead of the
+    test passing.
+    """
+    main(["benchmarks", "run", "b1", "--candidate", "openai:a"])
+
+    assert httpx_mock.get_requests() == []
+
+
+def test_run_with_a_malformed_candidate_is_a_cli_usage_error(capsys):
+    exit_code = main(
+        ["benchmarks", "run", "b1", "--candidate", "not-valid", "--candidate", "openai:a"]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "Invalid --candidate" in captured.err
+
+
+def test_run_with_two_malformed_candidates_is_still_a_cli_usage_error_not_a_count_error(capsys):
+    """Exactly 2 candidates supplied, but one is malformed - the count
+    check must not mask a genuine format error.
+    """
+    exit_code = main(
+        ["benchmarks", "run", "b1", "--candidate", "not-valid", "--candidate", "also-not-valid"]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "Invalid --candidate" in captured.err

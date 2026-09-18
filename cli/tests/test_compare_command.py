@@ -121,9 +121,51 @@ def test_a_failed_candidate_is_shown_not_hidden(httpx_mock, api_env, capsys):
     assert "anthropic/model-b" in captured.out
 
 
-def test_requires_at_least_one_candidate_flag():
+def test_zero_candidates_is_a_validation_error():
     exit_code = main(["compare", "--modality", "text", "--activity-type", "text_generation"])
     assert exit_code == 2
+
+
+def test_one_candidate_is_a_cli_usage_error(httpx_mock, capsys):
+    """P1 regression: `action='append', required=True` alone only
+    enforces >=1 candidate, not the required >=2 - the minimum count
+    must be enforced by parse_candidates() itself.
+    """
+    exit_code = main(
+        [
+            "compare",
+            "--modality",
+            "text",
+            "--activity-type",
+            "text_generation",
+            "--candidate",
+            "openai:model-a",
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "at least 2" in captured.err
+
+
+def test_one_candidate_makes_no_http_request(httpx_mock):
+    """No response is registered - if a request were actually made,
+    pytest-httpx would raise for an unmatched request instead of the
+    test passing.
+    """
+    main(
+        [
+            "compare",
+            "--modality",
+            "text",
+            "--activity-type",
+            "text_generation",
+            "--candidate",
+            "openai:model-a",
+        ]
+    )
+
+    assert httpx_mock.get_requests() == []
 
 
 def test_malformed_candidate_is_a_cli_usage_error(capsys):
@@ -136,6 +178,31 @@ def test_malformed_candidate_is_a_cli_usage_error(capsys):
             "text_generation",
             "--candidate",
             "not-valid",
+            "--candidate",
+            "openai:model-a",
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "Invalid --candidate" in captured.err
+
+
+def test_two_malformed_candidates_is_still_a_cli_usage_error_not_a_count_error(capsys):
+    """Exactly 2 candidates supplied, but one is malformed - the count
+    check must not mask a genuine format error.
+    """
+    exit_code = main(
+        [
+            "compare",
+            "--modality",
+            "text",
+            "--activity-type",
+            "text_generation",
+            "--candidate",
+            "not-valid",
+            "--candidate",
+            "also-not-valid",
         ]
     )
     captured = capsys.readouterr()
