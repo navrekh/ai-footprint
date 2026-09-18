@@ -1,6 +1,9 @@
+import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiKeysApi, applicationsApi, organizationsApi, projectsApi } from "@/lib/api/resources";
+import { findConnectedApiKey } from "@/lib/auth/connectedKey";
+import { getApiKey } from "@/lib/auth/session";
 import type {
   ApiKeyCreateRequest,
   ApplicationCreate,
@@ -56,6 +59,24 @@ export function useApiKeys(limit = LIST_LIMIT) {
     queryKey: queryKeys.apiKeys(limit),
     queryFn: () => apiKeysApi.list({ limit }),
   });
+}
+
+/**
+ * Metadata of the API key this console is connected with, identified by
+ * matching the session-held raw key against prefix metadata (see
+ * src/lib/auth/connectedKey.ts for the documented API limitation). The raw
+ * key itself is never exposed through this hook. `connected` is null when
+ * the key cannot be identified uniquely — callers must treat that as
+ * "unknown scope", never as a guessed scope.
+ */
+export function useConnectedApiKey() {
+  const keys = useApiKeys();
+  const rawKey = getApiKey();
+  const connected = useMemo(
+    () => findConnectedApiKey(rawKey, keys.data?.items),
+    [rawKey, keys.data],
+  );
+  return { isPending: keys.isPending, error: keys.error, connected };
 }
 
 export function useCreateProject() {

@@ -6,7 +6,13 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardsSkeleton, Skeleton } from "@/components/ui/skeleton";
-import { useApiKeys, useApplications, useOrganization, useProjects } from "@/hooks/queries";
+import {
+  useApiKeys,
+  useApplications,
+  useConnectedApiKey,
+  useOrganization,
+  useProjects,
+} from "@/hooks/queries";
 
 function Metric({
   label,
@@ -38,8 +44,20 @@ export function DashboardPage() {
   const projects = useProjects();
   const applications = useApplications();
   const apiKeys = useApiKeys();
+  const connected = useConnectedApiKey();
 
-  const organizationId = projects.data?.items[0]?.organization_id;
+  /**
+   * Organization identity comes from the connected key's own metadata
+   * (GET /v1/api-keys exposes organization_id as non-secret metadata — see
+   * lib/auth/connectedKey.ts), so an organization with zero projects still
+   * resolves. Fallback: the first project's organization_id, kept for the
+   * case where the connected key cannot be identified (documented API
+   * limitation: no endpoint returns the authenticated key's identity). An
+   * organization ID is never fabricated — if neither source yields one,
+   * the card below explains the limitation instead of rendering data.
+   */
+  const organizationId =
+    connected.connected?.organization_id ?? projects.data?.items[0]?.organization_id;
   const organization = useOrganization(organizationId);
 
   const error = projects.error ?? applications.error ?? apiKeys.error;
@@ -97,8 +115,9 @@ export function DashboardPage() {
             </dl>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Organization details become available once this organization has at least one
-              project.
+              Organization details are unavailable: the connected key could not be identified
+              from key metadata and this organization has no projects yet. The console does not
+              fabricate organization identity.
             </p>
           )}
         </CardContent>

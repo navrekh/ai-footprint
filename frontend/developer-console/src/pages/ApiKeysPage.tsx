@@ -17,7 +17,14 @@ import {
 import { Field, Input, Select } from "@/components/ui/field";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableWrapper, Td, Th } from "@/components/ui/table";
-import { useApiKeys, useCreateApiKey, useProjects, useRevokeApiKey } from "@/hooks/queries";
+import {
+  useApiKeys,
+  useConnectedApiKey,
+  useCreateApiKey,
+  useProjects,
+  useRevokeApiKey,
+} from "@/hooks/queries";
+import { resolveConnectedKeyScope } from "@/lib/auth/connectedKey";
 import { formatDateTime } from "@/lib/utils/format";
 import type { ApiKey, ApiKeyCreated } from "@/types/api";
 
@@ -127,14 +134,43 @@ function CreateApiKeyDialog({
   const [expiresAt, setExpiresAt] = useState("");
   const projects = useProjects();
   const create = useCreateApiKey();
+  const connected = useConnectedApiKey();
+  const scope = resolveConnectedKeyScope(connected.connected);
+
+  /**
+   * Scope handling per the backend contract:
+   * - organization-level credential: explicit choice — organization-level,
+   *   or a specific project (required to create a project-scoped key);
+   * - project-scoped credential: locked to its own project, no choice shown;
+   * - unknown scope (the API exposes no "who am I" endpoint and the key
+   *   could not be matched to prefix metadata — see lib/auth/connectedKey):
+   *   the safest contract-compatible UX is to require an explicit project
+   *   and offer no organization-level option. The console never guesses.
+   */
+  const lockedProjectName =
+    scope.kind === "project"
+      ? (projects.data?.items.find((project) => project.id === scope.projectId)?.name ??
+        scope.projectId)
+      : null;
+
+  const canSubmit =
+    name.trim().length > 0 &&
+    !create.isPending &&
+    !connected.isPending &&
+    (scope.kind !== "unknown" || projectId !== "");
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!name.trim() || create.isPending) return;
+    if (!canSubmit) return;
+    // A project-scoped credential always creates keys for its own project;
+    // the locked scope wins over any stale form state.
+    const effectiveProjectId =
+      scope.kind === "project" ? scope.projectId : scope.kind === "unknown" ? projectId : projectId || null;
+    if (scope.kind === "unknown" && !effectiveProjectId) return;
     try {
       const created = await create.mutateAsync({
         name: name.trim(),
-        project_id: projectId || null,
+        project_id: effectiveProjectId,
         expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
       });
       setName("");
@@ -169,24 +205,45 @@ function CreateApiKeyDialog({
             />
           </Field>
 
-          <Field
-            label="Scope"
-            htmlFor="api-key-project"
-            hint="Scope the key to one project, or leave organization-level."
-          >
-            <Select
-              id="api-key-project"
-              value={projectId}
-              onChange={(event) => setProjectId(event.target.value)}
+          {scope.kind === "project" ? (
+            <Field
+              label="Scope"
+              htmlFor="api-key-project-locked"
+              hint="The connected key is scoped to this project; keys created here are restricted to it."
             >
-              <option value="">Organization-level</option>
-              {projects.data?.items.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
+              <Input id="api-key-project-locked" value={lockedProjectName ?? ""} disabled readOnly />
+            </Field>
+          ) : (
+            <Field
+              label="Scope"
+              htmlFor="api-key-project"
+              hint={
+                scope.kind === "organization"
+                  ? "Scope the key to one project, or leave organization-level."
+                  : "The console could not determine the connected key's scope, so an explicit project is required."
+              }
+            >
+              <Select
+                id="api-key-project"
+                value={projectId}
+                required={scope.kind === "unknown"}
+                onChange={(event) => setProjectId(event.target.value)}
+              >
+                {scope.kind === "organization" ? (
+                  <option value="">Organization-level</option>
+                ) : (
+                  <option value="" disabled>
+                    Select a project…
+                  </option>
+                )}
+                {projects.data?.items.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
 
           <Field label="Expires at" htmlFor="api-key-expires" hint="Optional.">
             <Input
@@ -208,7 +265,7 @@ function CreateApiKeyDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={create.isPending || !name.trim()}>
+            <Button type="submit" disabled={!canSubmit}>
               {create.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               ) : null}
