@@ -408,6 +408,9 @@ Per-token, per-image, per-second and per-minute denominators are computed from t
 ### ADR-011: Methodology validation is separate from runtime estimation
 `scripts/validate_methodology.py` is read-only, advisory tooling for data governance (referential integrity, ranges, provenance completeness, TEST_ONLY-vs-production classification). It never runs at request time, never alters data, and never re-implements factor resolution - `EstimationPipeline`/`FactorRepository` remain the sole runtime authority, so there is exactly one estimation path.
 
+### ADR-013: Client/integration metadata is a JSON column on the existing workload row, not a new table
+Sprint 6's client/integration metadata (`client_type`, `client_name`, `client_version`, `integration_type`, `integration_version`, `runtime`) is small, fully optional, changes independently of any other workload field, and needs to be queryable for future client-adoption analytics without needing its own lifecycle or CRUD surface - the same reasoning ADR-006 applies to benchmark definitions. It is stored as a single nullable `client_context` JSON column on `ai_workloads` (one additive, backward-compatible migration) rather than a new table or individual columns per field, and is represented on the wire as the typed, versioned `ClientContext` Pydantic model (not the pre-existing free-form `metadata` field) so it gets real OpenAPI enum/type documentation. It is never read by `WorkloadValidator` or `EstimationPipeline`, so it structurally cannot affect an estimate, and it carries no organization/project/application fields, so it structurally cannot be mistaken for authorization data.
+
 ## 24. Future Decomposition
 
 Only after scale requires it, services may be separated into:

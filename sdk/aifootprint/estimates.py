@@ -10,7 +10,19 @@ GET /v1/estimates/{id}, which only finds estimates created via
 from __future__ import annotations
 
 from ._transport import Transport
-from .models import Estimate, PersistedEstimate
+from .models import ClientContext, Estimate, PersistedEstimate
+
+
+def _serialize_client(client: ClientContext | dict | None) -> dict | None:
+    """Accepts either a typed `ClientContext` or a plain dict (mirroring
+    how `metadata` already accepts a plain dict), so callers are never
+    forced to import `ClientContext` for a simple case.
+    """
+    if client is None:
+        return None
+    if isinstance(client, ClientContext):
+        return client.model_dump(mode="json", exclude_none=True)
+    return client
 
 
 def build_workload_body(
@@ -34,12 +46,16 @@ def build_workload_body(
     duration_seconds: float | None = None,
     duration_ms: float | None = None,
     metadata: dict | None = None,
+    client: ClientContext | dict | None = None,
 ) -> dict:
     """Shared field set across /v1/estimate, /v1/events, and each item
     of /v1/batch-estimate - mirrors WorkloadInput exactly (see
     backend/footprint-api/app/schemas/workload.py). Kept as a plain
     function (not a shared base class) so each resource module's public
     method signature stays explicit and self-documenting.
+
+    `client` is optional, observational client/integration metadata
+    (Sprint 6) - it never affects the resulting estimate.
     """
     return {
         "provider": provider,
@@ -61,6 +77,7 @@ def build_workload_body(
         "duration_seconds": duration_seconds,
         "duration_ms": duration_ms,
         "metadata": metadata,
+        "client": _serialize_client(client),
     }
 
 
@@ -90,6 +107,7 @@ class EstimatesResource:
         duration_seconds: float | None = None,
         duration_ms: float | None = None,
         metadata: dict | None = None,
+        client: ClientContext | dict | None = None,
     ) -> Estimate:
         body = build_workload_body(
             provider=provider,
@@ -111,6 +129,7 @@ class EstimatesResource:
             duration_seconds=duration_seconds,
             duration_ms=duration_ms,
             metadata=metadata,
+            client=client,
         )
         data, request_id = self._transport.request("POST", "/v1/estimate", json_body=body)
         result = Estimate.model_validate(data)

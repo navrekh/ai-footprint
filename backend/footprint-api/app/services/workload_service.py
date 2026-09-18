@@ -93,6 +93,11 @@ class WorkloadService:
             parent_workload_id=payload.parent_workload_id,
             idempotency_key=payload.idempotency_key,
             workload_metadata=payload.metadata,
+            client_context=(
+                payload.client.model_dump(mode="json", exclude_none=True)
+                if payload.client
+                else None
+            ),
         )
         try:
             self._db.add(workload)

@@ -102,6 +102,22 @@ class ProjectStatus(str, Enum):
     ARCHIVED = "archived"
 
 
+class ClientType(str, Enum):
+    """The software surface instrumenting a workload (Sprint 6). Purely
+    observational - see ClientContext - and never affects the resulting
+    estimate.
+    """
+
+    WEB = "web"
+    PYTHON_SDK = "python_sdk"
+    JAVASCRIPT_SDK = "javascript_sdk"
+    CLI = "cli"
+    BROWSER_EXTENSION = "browser_extension"
+    IOS = "ios"
+    ANDROID = "android"
+    DIRECT_API = "direct_api"
+
+
 # ---------------------------------------------------------------------------
 # Base result - the single request-ID mechanism (see Sprint 5B Step 11).
 # ---------------------------------------------------------------------------
@@ -154,6 +170,25 @@ class ComparisonCandidate(BaseModel):
     provider: str
     model: str
     model_version: str | None = None
+
+
+class ClientContext(BaseModel):
+    """Identifies the software surface that instrumented a workload -
+    distinct from `application_id`, which identifies the product/
+    service/environment that *owns* the workload (Sprint 6). Every
+    field is optional and observational only: this SDK does not, and
+    the API contract does not, use any of these fields for estimation,
+    authorization, or ownership. Submitting different client metadata
+    for an otherwise identical workload never changes the resulting
+    estimate.
+    """
+
+    client_type: ClientType | None = None
+    client_name: str | None = None
+    client_version: str | None = None
+    integration_type: str | None = None
+    integration_version: str | None = None
+    runtime: str | None = None
 
 
 class Denominator(BaseModel):
@@ -368,6 +403,7 @@ class Workload(ResultBase):
     duration_ms: float | None
     parent_workload_id: str | None
     metadata: dict | None = None
+    client: ClientContext | None = None
     created_at: datetime
 
 

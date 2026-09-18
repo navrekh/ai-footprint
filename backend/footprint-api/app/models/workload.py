@@ -75,6 +75,17 @@ class AIWorkload(Base):
     idempotency_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
     workload_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
 
+    # Sprint 6: the client/integration surface that instrumented this
+    # workload (app/schemas/workload.py:ClientContext), serialized as
+    # plain JSON rather than added as individual columns since it is
+    # small, optional, and queryable via Postgres JSON operators
+    # (`client_context->>'client_type'`) without a dedicated table or
+    # extra migration surface per field (ARCHITECTURE.md ADR-006 applies
+    # the same "avoid a table for a small, rarely-changing shape"
+    # reasoning here). Purely observational - never read by the
+    # estimation pipeline.
+    client_context: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False, index=True
     )

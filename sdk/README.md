@@ -127,6 +127,38 @@ uncertain response. The SDK never generates one for you; if you omit it,
 no idempotency key is sent, and a retry will record a second, distinct
 event.
 
+### Client / integration metadata
+
+Both `estimates.create()` and `events.create()` accept an optional
+`client` argument identifying the software surface instrumenting the
+workload — distinct from `application_id`, which identifies the
+product/service/environment that *owns* it. It is purely observational:
+submitting different client metadata for an otherwise identical
+workload never changes the resulting estimate.
+
+```python
+from aifootprint import ClientContext, ClientType
+
+event = client.events.create(
+    provider="openai",
+    model="model-id",
+    modality="text",
+    activity_type="text_generation",
+    input_tokens=2000,
+    output_tokens=1000,
+    project_id="proj_...",
+    client=ClientContext(
+        client_type=ClientType.PYTHON_SDK,
+        client_name="my-backend-service",
+        client_version="1.4.0",
+    ),
+)
+```
+
+A plain `dict` (e.g. `client={"client_type": "python_sdk"}`) works too —
+`ClientContext` is a convenience, not a requirement. Omitting `client`
+entirely keeps working exactly as before Sprint 6.
+
 ## Querying usage
 
 Usage figures are **derived from previously persisted events** — they

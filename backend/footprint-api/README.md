@@ -419,6 +419,28 @@ per project; the same key in a different project is a different key.
 `/v1/benchmarks/run` are stateless and have no idempotency
 concept - nothing is persisted to replay.
 
+### Client / integration metadata (Sprint 6)
+
+`WorkloadInput` (shared by `/v1/estimate`, `/v1/events`, and each item
+of `/v1/batch-estimate`) accepts an optional `client` object identifying
+the software surface that instrumented the workload - see
+`ClientContext`/`ClientType` in `app/schemas/workload.py` and
+`app/models/enums.py`. This is distinct from `application_id`, which
+identifies the product/service/environment that *owns* the workload:
+
+- `application_id` answers "which of my applications does this belong to?"
+- `client` answers "which SDK/CLI/extension/app submitted it?"
+
+Every `client` field is optional and purely observational - it is never
+read by validation, provider/model/methodology resolution, or the
+estimation pipeline, so it never changes the resulting estimate (see
+`tests/integration/test_client_instrumentation.py` for the regression
+tests proving this). It must never be treated as authorization data:
+nothing in `client` can affect organization/project/application
+ownership or API-key scope. When persisted via `POST /v1/events`, it is
+stored on the workload's `client_context` column and returned by
+`GET /v1/workloads`/`GET /v1/workloads/{id}` as `client`.
+
 ### Errors
 
 Every error response has the same shape:

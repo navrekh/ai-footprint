@@ -214,6 +214,33 @@ class UsageGranularity(StrEnum):
     MONTH = "month"
 
 
+class ClientType(StrEnum):
+    """The software surface that instrumented a workload (Sprint 6 FRD
+    section 38.3). Purely observational - see WorkloadInput.client - and
+    must never influence provider/model resolution, methodology
+    resolution, or the resulting estimate.
+
+    * `web` - the AI Footprint developer console.
+    * `python_sdk` - the official Python SDK.
+    * `javascript_sdk` - a future JavaScript/TypeScript SDK.
+    * `cli` - a future command-line client.
+    * `browser_extension` - a future browser extension.
+    * `ios` - a future iOS application.
+    * `android` - a future Android application.
+    * `direct_api` - a caller integrating directly against the REST API,
+      without any of the above.
+    """
+
+    WEB = "web"
+    PYTHON_SDK = "python_sdk"
+    JAVASCRIPT_SDK = "javascript_sdk"
+    CLI = "cli"
+    BROWSER_EXTENSION = "browser_extension"
+    IOS = "ios"
+    ANDROID = "android"
+    DIRECT_API = "direct_api"
+
+
 class NormalizationBasis(StrEnum):
     """The workload quantity a normalized resource-intensity range was
     divided by (docs/METHODOLOGY.md section 25). Always returned alongside
