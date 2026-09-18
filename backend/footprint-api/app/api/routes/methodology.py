@@ -13,6 +13,10 @@ router = APIRouter()
     response_model=list[MethodologyRead],
     tags=["registry"],
     summary="List published methodology versions, assumptions, limitations and sources",
+    description=(
+        "Public, no authentication required. Methodology versions are immutable once "
+        "published - a changed coefficient, boundary or assumption creates a new version."
+    ),
 )
 async def list_methodology(db: AsyncSession = Depends(get_db_session)) -> list[MethodologyRead]:
     methodologies = await MethodologyService(db).list_methodologies()

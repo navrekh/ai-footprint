@@ -24,7 +24,7 @@ class ErrorCode(StrEnum):
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
-_STATUS_BY_CODE: dict[ErrorCode, int] = {
+STATUS_BY_CODE: dict[ErrorCode, int] = {
     ErrorCode.INVALID_REQUEST: status.HTTP_400_BAD_REQUEST,
     ErrorCode.INVALID_API_KEY: status.HTTP_401_UNAUTHORIZED,
     ErrorCode.API_KEY_EXPIRED: status.HTTP_401_UNAUTHORIZED,
@@ -52,7 +52,7 @@ class AppError(Exception):
     def __init__(self, code: ErrorCode, message: str, status_code: int | None = None) -> None:
         self.code = code
         self.message = message
-        self.status_code = status_code or _STATUS_BY_CODE.get(
+        self.status_code = status_code or STATUS_BY_CODE.get(
             code, status.HTTP_400_BAD_REQUEST
         )
         super().__init__(message)

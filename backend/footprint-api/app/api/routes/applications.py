@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_auth_context
 from app.api.dependencies.db import get_db_session
+from app.core.errors import ErrorCode
+from app.core.openapi_docs import AUTH_ERRORS, error_responses
 from app.schemas.application import (
     ApplicationCreate,
     ApplicationListResponse,
@@ -21,6 +23,13 @@ router = APIRouter()
     response_model=ApplicationRead,
     tags=["applications"],
     summary="Create an application within an authorized project",
+    description=(
+        "Creates an Application owned by a project. A project-scoped key targets its own "
+        "project automatically; an organization-level key must supply `project_id` explicitly."
+    ),
+    responses=error_responses(
+        *AUTH_ERRORS, ErrorCode.FORBIDDEN, ErrorCode.MISSING_PARAMETER, ErrorCode.NOT_FOUND
+    ),
 )
 async def create_application(
     payload: ApplicationCreate,
@@ -42,6 +51,11 @@ async def create_application(
     response_model=ApplicationListResponse,
     tags=["applications"],
     summary="List applications visible to the authenticated organization/project",
+    description=(
+        "Limit/offset-paginated. A project-scoped key is hard-limited to its own project "
+        "regardless of the `project` filter; an organization-level key may filter by project."
+    ),
+    responses=error_responses(*AUTH_ERRORS),
 )
 async def list_applications(
     project: str | None = Query(default=None, description="Filter by project id"),
@@ -64,6 +78,8 @@ async def list_applications(
     response_model=ApplicationRead,
     tags=["applications"],
     summary="Get an application owned by the authenticated organization/project",
+    description="404 if the application does not belong to the authorized organization/project.",
+    responses=error_responses(*AUTH_ERRORS, ErrorCode.NOT_FOUND),
 )
 async def get_application(
     application_id: str,
@@ -82,6 +98,11 @@ async def get_application(
     response_model=ApplicationRead,
     tags=["applications"],
     summary="Update an application owned by the authenticated organization/project",
+    description=(
+        "Updates mutable fields (name/description/status/environment) without changing "
+        "project ownership. 404 if the application does not belong to the caller."
+    ),
+    responses=error_responses(*AUTH_ERRORS, ErrorCode.NOT_FOUND),
 )
 async def update_application(
     application_id: str,

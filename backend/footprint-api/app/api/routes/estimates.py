@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_auth_context
 from app.api.dependencies.db import get_db_session
+from app.core.errors import ErrorCode
+from app.core.openapi_docs import AUTH_ERRORS, error_responses
 from app.methodology.event_status import compute_event_status
 from app.models.enums import Confidence, MetricStatus
 from app.models.estimate import Estimate
@@ -57,6 +59,11 @@ def _to_persisted_estimate_read(estimate: Estimate) -> PersistedEstimateRead:
     response_model=PersistedEstimateRead,
     tags=["estimates"],
     summary="Get a persisted estimate owned by the authenticated tenant",
+    description=(
+        "Only estimates created via `POST /v1/events` are persisted and retrievable here - "
+        "an `estimate_id` from the stateless `POST /v1/estimate` has no corresponding row."
+    ),
+    responses=error_responses(*AUTH_ERRORS, ErrorCode.NOT_FOUND),
 )
 async def get_estimate(
     estimate_id: str,

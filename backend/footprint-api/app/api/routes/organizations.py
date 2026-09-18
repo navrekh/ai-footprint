@@ -3,7 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_auth_context
 from app.api.dependencies.db import get_db_session
-from app.core.errors import NotFoundError
+from app.core.errors import ErrorCode, NotFoundError
+from app.core.openapi_docs import AUTH_ERRORS, error_responses
 from app.schemas.organization import (
     OrganizationBootstrapResponse,
     OrganizationCreate,
@@ -21,6 +22,11 @@ router = APIRouter()
     response_model=OrganizationBootstrapResponse,
     tags=["organizations"],
     summary="Sign up: create an organization with a default project and first API key",
+    description=(
+        "The only unauthenticated write endpoint: bootstraps a new Organization, a default "
+        "Project within it, and a first Project-scoped API key, in a single call. This is "
+        "the Quick Start's entry point - the returned `api_key.key` is shown exactly once."
+    ),
 )
 async def create_organization(
     payload: OrganizationCreate, db: AsyncSession = Depends(get_db_session)
@@ -40,6 +46,12 @@ async def create_organization(
     response_model=OrganizationRead,
     tags=["organizations"],
     summary="Get the authenticated caller's own organization",
+    description=(
+        "Returns the organization the authenticated API key belongs to. Any id other than "
+        "the caller's own organization returns 404 - existence of another organization is "
+        "never confirmed or denied."
+    ),
+    responses=error_responses(*AUTH_ERRORS, ErrorCode.NOT_FOUND),
 )
 async def get_organization(
     organization_id: str,

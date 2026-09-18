@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_auth_context
 from app.api.dependencies.db import get_db_session
+from app.core.errors import ErrorCode
+from app.core.openapi_docs import AUTH_ERRORS, error_responses
 from app.models.enums import ActivityType
 from app.schemas.workload import WorkloadPage, WorkloadRead
 from app.services.auth_service import AuthContext
@@ -19,6 +21,12 @@ router = APIRouter()
     response_model=WorkloadPage,
     tags=["workloads"],
     summary="List workload history for the authenticated tenant (cursor-paginated)",
+    description=(
+        "Opaque, keyset-paginated (`cursor`/`next_cursor`) rather than limit/offset, so "
+        "results stay stable under concurrent inserts. Pass the previous response's "
+        "`next_cursor` to fetch the next page; a `null` `next_cursor` means the last page."
+    ),
+    responses=error_responses(*AUTH_ERRORS, ErrorCode.INVALID_REQUEST),
 )
 async def list_workloads(
     project: str | None = Query(default=None, description="Filter by project id"),
@@ -54,6 +62,8 @@ async def list_workloads(
     response_model=WorkloadRead,
     tags=["workloads"],
     summary="Get a single workload owned by the authenticated tenant",
+    description="404 if the workload does not belong to the authorized organization/project.",
+    responses=error_responses(*AUTH_ERRORS, ErrorCode.NOT_FOUND),
 )
 async def get_workload(
     workload_id: str,
