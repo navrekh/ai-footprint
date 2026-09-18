@@ -1,9 +1,9 @@
 # AI FOOTPRINT
 ## Functional Requirements Document (FRD)
-### Version 0.3 — Foundation + Developer Platform + Resource Intelligence + Developer Experience
+### Version 0.4 — Foundation + Developer Platform + Resource Intelligence + Developer Experience + Adoption & Instrumentation
 
-**Status:** Approved — Sprint 5 implementation contract  
-**Purpose:** Define the functional and technical requirements for the AI Footprint backend through the Developer Experience & Productization milestone (Sprint 5), building on the Sprint 4 AI Resource Intelligence and Sprint 3 Developer Platform & Usage Intelligence milestones.
+**Status:** Approved — Sprint 6 implementation contract  
+**Purpose:** Define the functional and technical requirements for the AI Footprint backend through the Adoption & Instrumentation Foundation milestone (Sprint 6), building on the Sprint 5 Developer Experience & Productization, Sprint 4 AI Resource Intelligence and Sprint 3 Developer Platform & Usage Intelligence milestones.
 
 ## 1. System Components
 
@@ -1050,3 +1050,426 @@ MVP backend foundation is complete when:
 16. Docker environment works.
 17. No environmental coefficients are fabricated.
 18. Additional providers can be added without changing the core estimation architecture.
+
+## 38. Sprint 6 — Adoption & Instrumentation Foundation
+
+### 38.1 Functional objective
+
+Sprint 6 establishes a single backend contract for identifying the client/integration surface through which an AI workload was instrumented.
+
+The implementation must allow future Web, Python SDK, JavaScript SDK, CLI, Browser Extension, iOS, Android and direct API clients to submit the same canonical AIWorkload representation without introducing client-specific estimation paths.
+
+The API remains the authority for validation, methodology resolution, estimation, provenance and persistence.
+
+### 38.2 Domain distinction
+
+Client/Integration identity is distinct from Application identity.
+
+~~~text
+Organization
+  └── Project
+       └── Application
+            └── AIWorkload
+                 ├── Estimate
+                 └── Client/Integration Metadata
+~~~
+
+Application identifies the product/service/environment that owns the workload.
+
+Client/Integration metadata identifies the software surface that produced or instrumented the workload.
+
+A workload may have an Application and client metadata independently. Existing workloads without client metadata remain valid.
+
+### 38.3 Canonical instrumentation contract
+
+Define a typed, versioned contract with these semantic fields:
+
+| Field | Required | Semantics |
+|---|---|---|
+| client_type | No | Controlled client-surface category |
+| client_name | No | Human-readable client/integration identifier |
+| client_version | No | Version of the client surface |
+| integration_type | No | Integration mechanism/category |
+| integration_version | No | Optional integration version |
+| runtime | No | Optional non-sensitive runtime identifier |
+| metadata | No | Existing workload metadata, subject to privacy rules |
+
+The exact field names, enum values and wire placement must be established in the implementation contract before coding. Do not create parallel representations in event and workload schemas.
+
+Recommended initial client types:
+
+~~~text
+web
+python_sdk
+javascript_sdk
+cli
+browser_extension
+ios
+android
+direct_api
+~~~
+
+The taxonomy must be designed so future values can be added without modifying the estimation engine.
+
+### 38.4 Canonical event flow
+
+~~~text
+Client
+  |
+  | canonical workload + client metadata
+  v
+POST /v1/events
+  |
+  +--> authentication
+  +--> project/application authorization
+  +--> activity/modality validation
+  +--> provider/model resolution
+  +--> methodology resolution
+  +--> estimation pipeline
+  +--> provenance
+  +--> persistence
+  v
+EventCreateResponse
+~~~
+
+No client may calculate Energy, Water or CO2e locally as part of Sprint 6.
+
+### 38.5 Backward compatibility
+
+Existing requests to:
+
+- POST /v1/estimate
+- POST /v1/events
+- POST /v1/batch-estimate
+
+must remain valid unless an explicitly documented breaking contract is unavoidable.
+
+For Sprint 6, client metadata should be optional.
+
+Existing SDK calls that omit client metadata must continue to behave identically.
+
+Existing persisted workloads must remain readable.
+
+Existing usage and estimate APIs must continue to work without requiring client metadata.
+
+### 38.6 API and schema requirements
+
+The implementation must:
+
+1. Add the instrumentation contract to the canonical workload/event model rather than creating a second workload representation.
+2. Expose the contract through generated OpenAPI.
+3. Preserve Pydantic validation.
+4. Preserve activity/modality compatibility validation.
+5. Preserve project/application authorization.
+6. Preserve idempotency semantics.
+7. Preserve request IDs.
+8. Preserve estimate ranges, status, confidence and provenance.
+9. Avoid accepting arbitrary provider-supplied environmental measurements as trusted values.
+10. Avoid adding environmental coefficients.
+
+If a database change is required, it must be minimal, backward compatible and justified by the need to persist the client metadata for workload history/usage intelligence.
+
+### 38.7 Persistence requirements
+
+If client metadata is persisted:
+
+- it must belong to the workload/event record or a clearly justified child representation;
+- it must be queryable for future client adoption analytics;
+- it must not change tenant isolation;
+- it must not contain secrets;
+- it must not require storing AI prompt/response content;
+- historical records without the new metadata must remain valid.
+
+Do not create a separate high-volume client-event ledger in Sprint 6 unless a concrete existing requirement demands it.
+
+### 38.8 Privacy requirements
+
+The implementation must explicitly reject the assumption that instrumentation requires AI content capture.
+
+The following are not required for workload measurement:
+
+- prompt text
+- response text
+- source code
+- private images
+- private audio/video
+- browser cookies
+- third-party provider authentication credentials
+
+Client metadata must be treated as potentially user-controlled input and must not be trusted as authorization data.
+
+### 38.9 Security requirements
+
+Client metadata must never determine:
+
+- organization
+- project authorization
+- API-key scope
+- application ownership
+- provider credentials
+- methodology approval
+
+Authorization continues to derive from authenticated API credentials and backend-owned resource relationships.
+
+Input validation must include:
+
+- bounded string lengths
+- controlled enum values where appropriate
+- safe metadata handling
+- no secret logging
+- no credential echoing
+
+Tenant and project isolation regression tests are mandatory.
+
+### 38.10 Idempotency
+
+Use the existing EventCreateRequest idempotency mechanism.
+
+Do not introduce:
+
+- client-side hash-based deduplication
+- a second idempotency header
+- a client-specific deduplication table
+
+The same project-scoped idempotency semantics apply whether the workload originates from the Web Console, SDK, CLI, extension, mobile application or direct API.
+
+### 38.11 Client version semantics
+
+Client version is observational metadata.
+
+It must not alter the estimation algorithm or methodology resolution.
+
+A client version change does not require an API version change.
+
+API contract breaking changes continue to require a new /vN API version.
+
+### 38.12 Python SDK requirements
+
+The existing SDK remains a thin REST client.
+
+Sprint 6 SDK changes, if required, shall:
+
+- add typed client/integration metadata;
+- serialize it deterministically;
+- preserve omitted optional fields;
+- expose it in typed workload/event responses where returned;
+- preserve request ID and exception semantics;
+- preserve API-key handling;
+- preserve Python >=3.10 compatibility.
+
+The SDK must not:
+
+- calculate estimates;
+- contain environmental coefficients;
+- capture prompts automatically;
+- persist API keys;
+- introduce a second HTTP/authentication path.
+
+Update the SDK contract-drift test to cover the new API shape.
+
+### 38.13 CLI contract
+
+Sprint 6 defines the backend contract consumed by the future CLI.
+
+The CLI is expected to use the same authenticated REST API.
+
+Future commands may include:
+
+~~~text
+aifootprint event
+aifootprint estimate
+aifootprint usage
+aifootprint compare
+aifootprint benchmarks
+~~~
+
+These commands are design targets only. Their complete implementation is Sprint 7.
+
+### 38.14 Browser Extension contract
+
+Sprint 6 defines the data and privacy boundary for the future Browser Extension.
+
+The extension must eventually:
+
+- identify supported AI web application activity;
+- derive only the minimum workload metadata necessary;
+- avoid sending conversation content by default;
+- allow user/site controls;
+- authenticate using a mechanism designed specifically for the extension client rather than exposing a user's raw long-lived API key to arbitrary page content;
+- submit canonical workload events to the AI Footprint API.
+
+Important: Sprint 6 must not implement page interception or extension authentication architecture beyond what is necessary to document the contract. A future extension-specific security design is required before Sprint 8 implementation.
+
+### 38.15 Mobile contract
+
+Future iOS and Android applications will consume the same API.
+
+They must not introduce mobile-only estimation formulas.
+
+Mobile clients may later provide:
+
+- personal usage history
+- resource-impact summaries
+- measurement coverage
+- educational explanations
+- shareable awareness experiences
+
+Mobile implementation is Sprint 9.
+
+### 38.16 API surface
+
+Sprint 6 should prefer extending existing endpoints over adding redundant endpoints.
+
+Primary integration endpoint:
+
+~~~text
+POST /v1/events
+~~~
+
+Existing endpoints remain authoritative for direct estimation and analytics:
+
+~~~text
+POST /v1/estimate
+POST /v1/batch-estimate
+GET  /v1/usage/summary
+GET  /v1/usage/by-provider
+GET  /v1/usage/by-model
+GET  /v1/usage/by-activity
+GET  /v1/usage/by-application
+GET  /v1/usage/timeseries
+~~~
+
+No separate /v1/instrumentation endpoint is required unless implementation evidence demonstrates that the existing event contract cannot support the required semantics.
+
+### 38.17 Testing requirements
+
+Minimum required coverage:
+
+#### Schema
+- valid client metadata
+- omitted client metadata
+- boundary lengths
+- invalid controlled values
+- backward-compatible existing requests
+
+#### Security
+- client metadata cannot bypass tenant isolation
+- client metadata cannot bypass project isolation
+- client metadata cannot alter API-key scope
+- secrets are not accepted as client metadata by design
+- raw credentials are not logged
+
+#### Events
+- client metadata persists correctly if persistence is implemented
+- idempotent replay preserves original workload/estimate
+- existing event behavior remains unchanged without metadata
+
+#### Estimation
+- instrumentation metadata does not alter estimation output for the same workload
+- no second estimation path is introduced
+
+#### SDK
+- serialization/deserialization
+- OpenAPI contract coverage
+- request ID behavior
+- error behavior
+- no estimation logic
+
+#### Regression
+- full existing backend suite
+- full SDK suite
+- existing frontend suite
+- Ruff
+- mypy
+- TypeScript/lint/build where applicable
+- Alembic validation
+
+### 38.18 Definition of Done
+
+Sprint 6 is complete when:
+
+1. Canonical client/integration semantics are documented.
+2. OpenAPI exposes the contract.
+3. Existing workload/event requests remain backward compatible.
+4. Client metadata can be submitted through the canonical event flow.
+5. Application identity and client identity remain separate.
+6. Tenant/project authorization remains unchanged.
+7. Existing idempotency semantics remain unchanged.
+8. Privacy requirements are documented and tested.
+9. Python SDK represents the contract where applicable.
+10. SDK remains a thin REST client.
+11. No client-specific estimation logic exists.
+12. No environmental coefficients are added.
+13. No prompt/response storage is introduced.
+14. Existing Sprint 1–5 regression suites remain green.
+15. New Sprint 6 tests are green.
+16. OpenAPI and documentation are consistent with implementation.
+17. CLI, Browser Extension and Mobile implementation sprints can consume the same canonical contract.
+
+### 38.19 Explicit non-goals
+
+Do not implement:
+
+- full CLI
+- Browser Extension
+- Chrome/Firefox distribution
+- iOS app
+- Android app
+- app-store distribution
+- page interception
+- provider traffic proxying
+- provider credential capture
+- prompt/response persistence
+- source-code persistence
+- new providers
+- new methodology factors
+- new estimation algorithms
+- rankings
+- scoring
+- recommendations
+- optimization
+- routing
+- billing
+- RBAC
+- SSO
+- Redis
+- Kafka
+- data warehouse
+- Kubernetes
+
+### 38.20 Implementation constraints
+
+- Reuse existing WorkloadInput/EventCreateRequest wherever possible.
+- Do not duplicate workload schemas.
+- Keep controllers thin.
+- Keep business logic in services.
+- Preserve the single EstimationPipeline runtime path.
+- Do not alter existing methodology behavior.
+- Prefer optional additive fields over breaking changes.
+- Do not introduce infrastructure solely for Sprint 6.
+- Any migration must be backward compatible and justified.
+- Any new API route requires explicit contract justification.
+
+### 38.21 Deliverables
+
+Expected repository deliverables:
+
+~~~text
+backend/
+  updated workload/event schemas
+  validation/tests
+  persistence migration only if required
+  OpenAPI updates
+
+sdk/
+  typed instrumentation/client metadata support
+  serialization tests
+  contract-drift coverage
+
+docs/
+  Sprint 6 PRD
+  Sprint 6 FRD
+  integration/privacy documentation as required
+~~~
+
+No CLI, extension or mobile application source tree is required in Sprint 6.
