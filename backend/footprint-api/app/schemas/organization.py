@@ -13,7 +13,19 @@ class OrganizationCreate(BaseModel):
 
 
 class OrganizationRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "org_01hxyzabc123",
+                "name": "Acme Inc",
+                "slug": "acme-inc",
+                "status": "active",
+                "created_at": "2026-01-01T00:00:00Z",
+                "updated_at": "2026-01-01T00:00:00Z",
+            }
+        },
+    )
 
     id: str
     name: str

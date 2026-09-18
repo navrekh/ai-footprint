@@ -125,7 +125,39 @@ class EventCreateResponse(BaseModel):
 
 
 class WorkloadRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "evt_01hxyzabc123",
+                "organization_id": "org_01hxyzabc123",
+                "project_id": "proj_01hxyzabc123",
+                "application_id": "app_01hxyzabc123",
+                "provider": "openai",
+                "model": "model-id",
+                "model_version": "2026-01-01",
+                "modality": "text",
+                "activity_type": "text_generation",
+                "timestamp": "2026-01-01T00:00:00Z",
+                "input_tokens": 2000,
+                "output_tokens": 1000,
+                "input_characters": None,
+                "output_characters": None,
+                "image_count": None,
+                "image_width": None,
+                "image_height": None,
+                "video_seconds": None,
+                "video_resolution": None,
+                "audio_seconds": None,
+                "tool_calls": None,
+                "duration_seconds": None,
+                "duration_ms": None,
+                "parent_workload_id": None,
+                "metadata": None,
+                "created_at": "2026-01-01T00:00:00Z",
+            }
+        },
+    )
 
     id: str
     organization_id: str
@@ -156,5 +188,43 @@ class WorkloadRead(BaseModel):
 
 
 class WorkloadPage(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "items": [
+                    {
+                        "id": "evt_01hxyzabc123",
+                        "organization_id": "org_01hxyzabc123",
+                        "project_id": "proj_01hxyzabc123",
+                        "application_id": "app_01hxyzabc123",
+                        "provider": "openai",
+                        "model": "model-id",
+                        "model_version": "2026-01-01",
+                        "modality": "text",
+                        "activity_type": "text_generation",
+                        "timestamp": "2026-01-01T00:00:00Z",
+                        "input_tokens": 2000,
+                        "output_tokens": 1000,
+                        "input_characters": None,
+                        "output_characters": None,
+                        "image_count": None,
+                        "image_width": None,
+                        "image_height": None,
+                        "video_seconds": None,
+                        "video_resolution": None,
+                        "audio_seconds": None,
+                        "tool_calls": None,
+                        "duration_seconds": None,
+                        "duration_ms": None,
+                        "parent_workload_id": None,
+                        "metadata": None,
+                        "created_at": "2026-01-01T00:00:00Z",
+                    }
+                ],
+                "next_cursor": "MjAyNi0wMS0wMVQwMDowMDowMFp8ZXZ0XzAxaHh5emFiYzEyMw==",
+            }
+        }
+    )
+
     items: list[WorkloadRead]
     next_cursor: str | None = None
