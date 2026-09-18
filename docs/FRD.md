@@ -829,7 +829,9 @@ Comparison and benchmark execution are stateless; Sprint 4 introduces no compari
 
 ## 36. Sprint 5 — Developer Experience & Productization
 
-Sprint 5 makes AI Footprint usable by an external developer without requiring knowledge of the internal repository or estimation-engine implementation. The primary outcome is developer usability, not additional estimation capability. This section defines the target architecture and requirements for that productization work; it is a specification for a future implementation sprint, not a description of code that exists as of this document.
+Sprint 5 makes AI Footprint usable by an external developer without requiring knowledge of the internal repository or estimation-engine implementation. The primary outcome is developer usability, not additional estimation capability. This section defines the target architecture and requirements for that productization work.
+
+**Implementation status:** Sprint 5B delivered the Python SDK (§36.7) against this specification. §36.8-36.13 (developer console, API Explorer, and their UI-specific requirements) remain a specification for a future implementation sub-phase and are not yet implemented; the rest of this section (§36.1-36.6, §36.14-36.16) describes the existing API contract the SDK was built against and continues to apply unchanged.
 
 ### 36.1 System Architecture
 
@@ -894,31 +896,56 @@ Complete OpenAPI documentation is required for the developer-facing API, coverin
 
 ### 36.7 Python SDK
 
-Target architecture (not implementation in this sprint):
+**Delivered in Sprint 5B.** Actual package layout (`sdk/aifootprint/`):
 
 ```text
 aifootprint/
-├── client.py
-├── events.py
-├── estimates.py
-├── usage.py
-├── compare.py
-├── benchmarks.py
+├── client.py         # AIClient - constructs one Transport, one resource
+│                        object per API area
+├── _transport.py      # internal httpx wrapper; not part of the public API
+├── organizations.py, projects.py, applications.py, api_keys.py
+├── estimates.py, events.py, batch.py, workloads.py
+├── usage.py, compare.py, benchmarks.py, registry.py
 ├── exceptions.py
 └── models.py
 ```
 
-Requirements:
+This is a superset of the originally sketched five-module layout
+(`events`, `estimates`, `usage`, `compare`, `benchmarks`) — organization/
+project/application/API-key management and the public provider/model/
+methodology registries were added so a developer can onboard and explore
+the API entirely through the SDK, without any raw HTTP calls.
 
-- Thin REST client only.
-- API-key authentication.
-- Timeout configuration.
-- Deterministic serialization.
-- Typed request/response models.
-- Useful exception mapping (backend `error.code`/`message` surfaced as typed SDK exceptions).
-- `request_id` exposure on every response/exception.
-- Idempotency support (`idempotency_key` argument on event ingestion).
-- No estimation logic of any kind.
+Requirements (all delivered):
+
+- Thin REST client only — verified by a dedicated contract test
+  (`backend/footprint-api/tests/test_sdk_contract.py`) that parses the
+  SDK's source and asserts every HTTP call it makes targets a route that
+  actually exists on the live backend, and vice versa.
+- API-key authentication (`Authorization: Bearer <key>` only — never a
+  query parameter, never logged, never persisted by the SDK).
+- Timeout configuration (`AIClient(timeout=...)`, default 30s).
+- Deterministic serialization (enums to their value, dates/datetimes to
+  ISO 8601, `None` fields omitted from request bodies).
+- Typed request/response models (Pydantic v2), preserving `min`/`max`
+  ranges, confidence, status, and provenance exactly as the API returns
+  them — never collapsed into a point estimate.
+- Useful exception mapping: backend `error.code`/`message`/`request_id`
+  surfaced as typed SDK exceptions (`AuthenticationError`,
+  `AuthorizationError`, `ValidationError`, `NotFoundError`,
+  `ConflictError`, `RateLimitError`, `APIError`, `TransportError`).
+- `request_id` exposure on every successful result (`result.request_id`)
+  and every raised `APIError` (`exception.request_id`).
+- Idempotency support: `idempotency_key` argument on `events.create()`,
+  sent as the body field the backend actually expects (verified against
+  `app/schemas/workload.py`, not assumed) — the SDK never generates one
+  on its own.
+- No estimation logic of any kind — confirmed by the contract test above
+  and by code review (the SDK has no import from the backend package).
+
+Python compatibility: `>=3.10` (deliberately broader than the backend's
+`>=3.13`, since a REST client has no reason to require the backend's
+runtime version).
 
 ### 36.8 Developer Console
 
@@ -968,40 +995,38 @@ The SDK and console are clients of the existing stateless APIs. Sprint 5 does no
 
 ### 36.16 Testing Requirements
 
-Future Sprint 5 implementation tests must cover:
-
-**SDK:** authentication, serialization, timeout, API error mapping, request ID, idempotency, typed responses.
+**SDK (delivered, Sprint 5B):** authentication (explicit/env/default precedence), serialization (query params, JSON bodies, enum/datetime encoding), timeout, API error mapping (one test per status code the backend defines), request ID exposure (success and error paths), idempotency (verified as a body field against the actual backend contract), typed responses for every public SDK operation, plus integration tests against a real local backend (`sdk/tests/integration/`, opt-in via `pytest -m integration`) and a backend-side contract-drift test (`backend/footprint-api/tests/test_sdk_contract.py`).
 
 **API:** existing endpoint contract regression, OpenAPI schema validation.
 
-**Console:** authentication, project/application selection, API key handling, API Explorer request execution, usage rendering, range rendering, insufficient-data rendering, compare candidate independence.
+**Console (not yet implemented):** authentication, project/application selection, API key handling, API Explorer request execution, usage rendering, range rendering, insufficient-data rendering, compare candidate independence.
 
 **Security:** no API-key leakage, tenant isolation, project isolation, backend authorization enforcement.
 
 ### 36.17 Sprint 5 Definition of Done
 
-Sprint 5 is complete only when:
+1. Developer documentation is complete. *(Sprint 5A)*
+2. OpenAPI contract is complete and accurate. *(Sprint 5A)*
+3. Quick Start is usable by a new developer. *(Sprint 5A; updated in Sprint 5B to reference the SDK)*
+4. Official Python SDK is available. ✅ *(Sprint 5B)*
+5. SDK contains no estimation logic. ✅ *(Sprint 5B)*
+6. Developer console is functional. — not yet implemented.
+7. API Explorer can execute authenticated API calls. — not yet implemented.
+8. Projects, applications and API keys are usable from the console. — not yet implemented (usable from the SDK; no console yet).
+9. Usage can be viewed using existing usage APIs. ✅ *(Sprint 5B, via the SDK; no console UI yet)*
+10. Compare can be executed/viewed. ✅ *(Sprint 5B, via the SDK; no console UI yet)*
+11. Benchmarks can be executed/viewed. ✅ *(Sprint 5B, via the SDK; no console UI yet)*
+12. Range and measurement-coverage semantics are preserved. ✅ *(Sprint 5B)*
+13. Request correlation is visible. ✅ *(Sprint 5B — `result.request_id` / `exception.request_id`)*
+14. Idempotency is documented and supported by the SDK. ✅ *(Sprint 5B)*
+15. Privacy and methodology behavior are clearly documented. ✅ *(Sprint 5B, in `sdk/README.md`)*
+16. No new estimation path is introduced. ✅ *(Sprint 5B)*
+17. No fabricated methodology data is introduced. ✅ *(Sprint 5B)*
+18. Existing Sprint 1-4 functionality remains backward compatible. ✅ *(Sprint 5B — full backend regression suite passes unchanged)*
+19. Automated tests pass. ✅ *(Sprint 5B — SDK unit + integration + backend contract-drift tests)*
+20. Lint/type checks pass. ✅ *(Sprint 5B — `ruff`/`mypy` clean on both the SDK and the backend)*
 
-1. Developer documentation is complete.
-2. OpenAPI contract is complete and accurate.
-3. Quick Start is usable by a new developer.
-4. Official Python SDK is available.
-5. SDK contains no estimation logic.
-6. Developer console is functional.
-7. API Explorer can execute authenticated API calls.
-8. Projects, applications and API keys are usable from the console.
-9. Usage can be viewed using existing usage APIs.
-10. Compare can be executed/viewed.
-11. Benchmarks can be executed/viewed.
-12. Range and measurement-coverage semantics are preserved.
-13. Request correlation is visible.
-14. Idempotency is documented and supported by the SDK.
-15. Privacy and methodology behavior are clearly documented.
-16. No new estimation path is introduced.
-17. No fabricated methodology data is introduced.
-18. Existing Sprint 1-4 functionality remains backward compatible.
-19. Automated tests pass.
-20. Lint/type checks pass.
+Sprint 5 as a whole remains incomplete until items 6-8 and 10-11's console UI are delivered in a future sub-phase.
 
 ## 37. Overall MVP Definition of Done
 

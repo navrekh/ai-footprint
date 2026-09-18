@@ -32,17 +32,21 @@ from zero to your first footprint estimate in about 10 minutes.
   `POST /v1/benchmarks/run`), normalized resource intensity (per
   token/image/second/minute where defensible), and a read-only
   methodology-data governance validator (`scripts/validate_methodology.py`).
-- **Sprint 5A** (this revision) is developer-experience productization
-  over the existing API: complete OpenAPI documentation (descriptions,
-  examples, and documented error responses for every endpoint), CORS
-  for the future Developer Console (per `docs/ADR-012-console-authentication.md`),
-  and this refreshed README/Quick Start. **No new endpoint, schema,
-  estimation logic, or methodology data was introduced.**
+- **Sprint 5A** is developer-experience productization over the existing
+  API: complete OpenAPI documentation (descriptions, examples, and
+  documented error responses for every endpoint), CORS for the future
+  Developer Console (per `docs/ADR-012-console-authentication.md`), and
+  a refreshed README/Quick Start. **No new endpoint, schema, estimation
+  logic, or methodology data was introduced.**
+- **Sprint 5B** added the official Python SDK (`sdk/`, package
+  `aifootprint`) - a thin, typed REST client covering every endpoint
+  below, with no estimation logic of its own. See `sdk/README.md`.
+  **No backend endpoint, schema, or estimation logic changed.**
 
-No frontend, Python SDK, or browser extension exists in this repository
-yet - see `docs/FRD.md` section 36 for the Sprint 5B/5C target
-architecture (a thin REST-client SDK and a static developer console),
-neither of which is implemented by Sprint 5A.
+No frontend or browser extension exists in this repository yet - see
+`docs/FRD.md` section 36 for the Sprint 5C+ target architecture (a
+static developer console and API Explorer), not implemented as of
+Sprint 5B.
 
 ## Architecture
 
