@@ -12,7 +12,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
-import { useCreateApplication, useProjects, useUpdateApplication } from "@/hooks/queries";
+import {
+  useConnectedApiKey,
+  useCreateApplication,
+  useProjects,
+  useUpdateApplication,
+} from "@/hooks/queries";
+import { resolveConnectedKeyScope } from "@/lib/auth/connectedKey";
 import type { Application, ApplicationEnvironment, ApplicationStatus } from "@/types/api";
 
 interface Props {
@@ -33,6 +39,8 @@ export function ApplicationFormDialog({
 }: Props) {
   const isEdit = Boolean(application);
   const projects = useProjects();
+  const connected = useConnectedApiKey();
+  const scope = resolveConnectedKeyScope(connected.connected);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -57,9 +65,33 @@ export function ApplicationFormDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, application, defaultProjectId]);
 
+  const lockedProjectName =
+    scope.kind === "project"
+      ? (projects.data?.items.find((project) => project.id === scope.projectId)?.name ??
+        scope.projectId)
+      : null;
+
+  /**
+   * Scope handling mirrors ApiKeysPage.tsx / lib/auth/connectedKey.ts:
+   * - project-scoped credential: locked to its own project - the locked
+   *   scope wins over any stale form state (a different project's
+   *   defaultProjectId, or a leftover selection), exactly as for API key
+   *   creation;
+   * - organization-level or unidentifiable ("unknown") credential: an
+   *   explicit project is always required. Unlike API key creation,
+   *   applications have no "organization-level" concept to fall back to,
+   *   so both cases behave the same way here - there is nothing safe to
+   *   imply from a blank selection either way.
+   */
+  const canSubmit =
+    name.trim().length > 0 &&
+    !pending &&
+    !connected.isPending &&
+    (isEdit || scope.kind === "project" || projectId !== "");
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!name.trim() || pending) return;
+    if (!canSubmit) return;
     try {
       if (application) {
         await update.mutateAsync({
@@ -69,11 +101,13 @@ export function ApplicationFormDialog({
           environment: environment || null,
         });
       } else {
+        const effectiveProjectId = scope.kind === "project" ? scope.projectId : projectId;
+        if (!effectiveProjectId) return;
         await create.mutateAsync({
           name: name.trim(),
           description: description.trim() || null,
           environment: environment || null,
-          project_id: projectId || null,
+          project_id: effectiveProjectId,
         });
       }
       onOpenChange(false);
@@ -103,18 +137,38 @@ export function ApplicationFormDialog({
             />
           </Field>
 
-          {!isEdit ? (
+          {!isEdit && scope.kind === "project" ? (
+            <Field
+              label="Project"
+              htmlFor="application-project-locked"
+              hint="The connected key is scoped to this project; applications created here belong to it."
+            >
+              <Input
+                id="application-project-locked"
+                value={lockedProjectName ?? ""}
+                disabled
+                readOnly
+              />
+            </Field>
+          ) : !isEdit ? (
             <Field
               label="Project"
               htmlFor="application-project"
-              hint="Required when connected with an organization-level API key; a project-scoped key targets its own project."
+              hint={
+                scope.kind === "organization"
+                  ? "Required. Applications always belong to exactly one project."
+                  : "The console could not determine the connected key's scope, so an explicit project is required."
+              }
             >
               <Select
                 id="application-project"
                 value={projectId}
+                required
                 onChange={(event) => setProjectId(event.target.value)}
               >
-                <option value="">Use the API key's own project</option>
+                <option value="" disabled>
+                  Select a project…
+                </option>
                 {projects.data?.items.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.name}
@@ -174,7 +228,7 @@ export function ApplicationFormDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={pending || !name.trim()}>
+            <Button type="submit" disabled={!canSubmit}>
               {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
               {isEdit ? "Save changes" : "Create application"}
             </Button>

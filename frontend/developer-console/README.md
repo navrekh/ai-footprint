@@ -25,6 +25,7 @@ npm run dev
 | `npm run build`     | Type-check and production build|
 | `npm run typecheck` | TypeScript only                |
 | `npm run lint`      | ESLint                         |
+| `npm test`          | Vitest (unit/component tests)  |
 
 `VITE_API_BASE_URL` is the API origin without the `/v1` suffix and without a
 trailing slash (for example `https://api.example.com`). The production URL is
@@ -58,6 +59,51 @@ All requests carry `Authorization: Bearer <API_KEY>`.
 Errors follow the backend contract `{"error": {code, message, request_id}}`,
 with `X-Request-ID` on every response. The console maps 400/401/403/404/409/
 422/429/5xx to developer-facing messages and displays the request ID.
+
+## Connected credential scope (known API limitation)
+
+The API has no endpoint that returns the authenticated key's own identity
+(no `/v1/me` or equivalent), and the backend is not changed to add one. The
+console identifies the connected key by matching the session-held raw key
+against the non-secret `key_prefix` metadata `GET /v1/api-keys` returns for
+every key in the organization (`src/lib/auth/connectedKey.ts`). The backend
+defines `key_prefix` as a literal leading slice of the raw key
+(`app/core/security.py`), so this match is exact, not a heuristic — and if
+it is ever ambiguous (more than one row matches) or missing, the console
+treats the scope as **unknown** rather than guessing.
+
+This identified scope drives two places in the UI:
+
+* **Creating an API key** (`ApiKeysPage.tsx`): an organization-level
+  credential can choose organization-level or an explicit project for the
+  new key; a project-scoped credential is locked to its own project, with
+  no organization-level option and no other project selectable; an
+  unidentifiable ("unknown") credential must also choose an explicit
+  project and is never offered an organization-level option either, since
+  the console cannot verify that choice is safe.
+* **Creating an application** (`ApplicationFormDialog.tsx`): applications
+  always belong to exactly one project, so there is no "organization-level"
+  choice here at all. A project-scoped credential is locked to its own
+  project; an organization-level or unknown credential must always choose
+  an explicit project from the full list — the console never offers a
+  "use the key's own project" default, which would be unverifiable (an
+  organization-level key has no project of its own) or unverified (a
+  project-scoped key's identity might not have matched).
+
+In every case, the value actually submitted to the API is the identified
+credential's own project id when locked, or the explicit selection
+otherwise — never inferred, and never overridden by stale form state (e.g.
+a `defaultProjectId` pre-filled from a different project's detail page).
+
+**Dashboard organization identity** (`DashboardPage.tsx`) is resolved the
+same way: `GET /v1/api-keys` exposes `organization_id` as non-secret
+metadata on the connected key's row, so an organization with zero projects
+still shows its details. The first project's `organization_id` remains a
+documented fallback for the rarer case where the connected key cannot be
+identified (e.g. more than 200 keys in the organization, past this
+console's list page size) — real, organization-scoped data, never a
+fabricated id. If neither source resolves, the dashboard says so rather
+than rendering nothing or misleading text.
 
 ## Resource-impact semantics
 
