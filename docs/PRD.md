@@ -1,10 +1,10 @@
 # AI FOOTPRINT
 ## Product Requirements Document (PRD)
-### Version 0.5 — Foundation + Developer Platform + Resource Intelligence + Developer Experience + Adoption & Instrumentation + CLI
+### Version 0.6 — Foundation + Developer Platform + Resource Intelligence + Developer Experience + Adoption & Instrumentation + CLI + CLI Distribution & Public Developer Site
 
 **Product:** AI Footprint  
 **Working tagline:** Know the hidden resource impact of AI.  
-**Status:** Approved — Sprint 7 specification  
+**Status:** Approved — Sprint 7A specification  
 
 ## 1. Executive Summary
 
@@ -860,6 +860,7 @@ Recommended implementation sequence:
 ~~~text
 Sprint 6  — Adoption & Instrumentation Foundation
 Sprint 7  — CLI + Developer Workflow
+Sprint 7A — CLI Distribution & Public Developer Site
 Sprint 8  — Browser Extension
 Sprint 9  — Mobile Apps
 Sprint 10+ — Integrations / Enterprise / broader adoption
@@ -1364,3 +1365,311 @@ docs/
 ~~~
 
 No Browser Extension or Mobile source tree is required in Sprint 7.
+
+
+## 40. Sprint 7A — CLI Distribution & Public Developer Site
+
+### 40.1 Objective
+
+Sprint 7A moves the AI Footprint CLI and Python SDK from repository-local developer tooling toward a genuinely distributable developer product, and introduces a public, unauthenticated developer-facing site that explains AI Footprint and directs developers to the CLI, SDK, API documentation, GitHub and Developer Console.
+
+Sprint 7A is a packaging, distribution and communication milestone. It SHALL NOT introduce new estimation logic, new instrumentation, new backend endpoints, or a redesign of the authenticated Developer Console.
+
+Sprint 7A has two workstreams:
+
+- Workstream A — CLI Distribution Readiness
+- Workstream B — Public Developer Landing Site
+
+This section is a specification. It does not describe an implemented system. Implementation SHALL follow approval of this PRD and the corresponding FRD section (FRD §40).
+
+### 40.2 Product evolution
+
+The intended developer experience for Workstream A:
+
+~~~text
+Clean machine
+   |
+   v
+pip install ...
+   |
+   v
+AI Footprint CLI
+   |
+   v
+Python SDK
+   |
+   v
+AI Footprint REST API
+~~~
+
+The existing architecture SHALL remain:
+
+~~~text
+CLI -> Python SDK -> REST API
+~~~
+
+Sprint 7A does not change this chain. It makes the chain reachable from a clean environment that has never cloned the repository.
+
+For Workstream B, the public site sits alongside — not inside — the authenticated Developer Console:
+
+~~~text
+Public Developer Site (unauthenticated)
+   |
+   +--> CLI installation guidance
+   +--> SDK / API documentation links
+   +--> GitHub
+   +--> Developer Console (call-to-action only; authenticated beyond this point)
+
+Authenticated Developer Console (existing, Sprint 5C/5D — unchanged by Sprint 7A)
+   |
+   +--> Organizations / Projects / Applications / API Keys
+   +--> Usage / Compare / Benchmarks / API Explorer
+~~~
+
+### 40.3 Target users
+
+- AI developers evaluating AI Footprint for the first time, with no prior repository access
+- software engineers installing the CLI/SDK on a workstation or in CI
+- platform/DevOps engineers wiring AI Footprint into pipelines
+- prospective developers/organizations discovering AI Footprint publicly, before creating an account
+
+### 40.4 Workstream A — In scope
+
+1. Define distribution requirements for the Python SDK independent of the repository.
+2. Define distribution requirements for the CLI independent of the repository.
+3. Define package-compatibility and versioning requirements between the SDK and CLI.
+4. Define required release artifacts (wheel, source distribution where appropriate).
+5. Define requirements for a future publishing mechanism (build, validation, workflow, release trigger, version/tag relationship, trusted publishing/OIDC where appropriate). Implementation of the publishing workflow itself is OUT OF SCOPE for Sprint 7A.
+6. Define security requirements applicable to packaging and publishing.
+7. Reaffirm that distribution does not change the CLI's existing privacy model.
+8. Define acceptance criteria for validating a clean-environment installation.
+9. Identify the current unlicensed status of the SDK/CLI packages as an OPEN DECISION and an implementation prerequisite for public distribution, without prescribing a license.
+
+Sprint 7A does NOT implement the publishing workflow, does NOT select a license, and does NOT change CLI/SDK application code, package configuration, or CI/CD workflows. Those remain implementation work for after this specification is approved.
+
+### 40.5 Workstream A — SDK distribution requirements
+
+The SDK SHALL be distributable independently of the repository:
+
+- Clean-environment installation SHALL resolve all runtime dependencies without requiring the source repository or an editable install.
+- Package metadata SHALL accurately declare runtime requirements (Python version, runtime dependencies, license field once selected).
+- SDK versioning SHALL be explicit and SHALL follow a documented, deterministic scheme. The exact scheme is an OPEN DECISION (§40.21).
+- The SDK SHALL remain the sole REST/authentication boundary for every client (CLI, future Browser Extension, future mobile apps, direct API callers who choose to use it).
+
+### 40.6 Workstream A — CLI distribution requirements
+
+The CLI SHALL be installable in a clean Python environment:
+
+- CLI dependency resolution on its SDK dependency SHALL work without a local editable install and without the source repository present.
+- CLI package metadata SHALL accurately declare its dependency on the published SDK package, including an explicit compatible version range.
+- CLI versioning SHALL remain independent from the AI Footprint API version, per the existing Sprint 7 requirement (§39.18), and SHALL be explicit and deterministic.
+- The CLI SHALL NOT introduce its own HTTP client, duplicate REST logic, local estimation logic, methodology coefficients, provider-specific estimation logic, alternate persistence, or alternate instrumentation as part of becoming distributable. The existing `CLI -> SDK -> REST API` architecture (§39.14) remains unchanged.
+
+### 40.7 Workstream A — Package compatibility
+
+- Supported Python versions SHALL be defined consistent with the existing SDK/CLI requirement (Python >= 3.10, per §39.18) unless a documented reason requires otherwise.
+- A compatibility relationship between SDK releases and CLI releases SHALL be defined (e.g., a CLI release declaring a compatible SDK version range) so that publishing either package does not silently break the other.
+- Existing CLI behavior, commands, exit codes, output formats and configuration precedence established in Sprint 7 SHALL NOT change as a side effect of distribution work.
+
+### 40.8 Workstream A — Release artifacts
+
+Sprint 7A SHALL define requirements for:
+
+- a wheel build for the SDK and the CLI;
+- a source distribution where appropriate;
+- validation that package metadata is complete and correct before release;
+- validation that an install from the built artifacts succeeds in a clean environment.
+
+### 40.9 Workstream A — Publishing
+
+Sprint 7A SHALL define, but NOT implement, requirements for a future or actual PyPI release mechanism, covering:
+
+- package build step;
+- package/metadata validation step;
+- a publishing workflow;
+- the release trigger (e.g., tag-based release);
+- the relationship between version numbers and release tags;
+- PyPI Trusted Publishing / OIDC where appropriate, as the preferred mechanism over long-lived published-package credentials.
+
+Implementation of this workflow is explicitly OUT OF SCOPE for Sprint 7A itself and is a subsequent implementation task once this specification is approved.
+
+### 40.10 Workstream A — Security requirements
+
+- Package metadata SHALL NOT contain API keys or other credentials.
+- Source distributions and wheels SHALL NOT contain credentials, secrets, or local developer configuration.
+- Any future publishing workflow SHALL NOT print secrets to logs.
+- Publishing SHALL NOT introduce a new credential-persistence mechanism beyond what Sprint 7 already defines for the CLI's local configuration (§39.11).
+- All CLI security/privacy requirements defined in Sprint 7 (§39.21) remain unchanged and in force.
+
+### 40.11 Workstream A — Privacy requirements
+
+Distribution SHALL NOT change the CLI's existing privacy model (§39.16). The CLI, once distributed, SHALL continue to NOT:
+
+- scan local files or source repositories;
+- inspect shell history;
+- capture prompts, AI responses, source code or browser content;
+- capture provider credentials.
+
+### 40.12 Workstream B — In scope
+
+1. Define a public, unauthenticated developer-facing site describing AI Footprint.
+2. Define the site's core positioning and required content topics.
+3. Define clear, required navigation paths to CLI installation, SDK documentation, API documentation, Quick Start, GitHub and the Developer Console.
+4. Explicitly define the boundary between the public site and the authenticated Developer Console.
+5. Define security requirements for the public site, including that no authenticated data or credentials are exposed.
+6. Define requirements for how the site presents methodology, ranges, confidence and limitations, consistent with existing product principles (§4) and the existing non-ranking, non-scoring posture (§39.9).
+7. Require that an architectural decision about origin/security-boundary separation between the public site and the Developer Console be documented as a Sprint 7A prerequisite. Producing that ADR is OUT OF SCOPE for this specification.
+
+Sprint 7A does NOT implement the public site's code, visual design, or hosting; it specifies what the eventual implementation must satisfy.
+
+### 40.13 Workstream B — Content and positioning
+
+Suggested positioning: "Measure AI's Resource Footprint From Your Developer Workflow."
+
+The public site SHOULD explain, in developer-oriented language:
+
+- what AI Footprint does;
+- why developers need AI resource intelligence;
+- the AIWorkload-centric measurement model;
+- supported workload categories (conversational, image, video, audio, coding/agent, RAG, embeddings, per §1/§5);
+- the CLI, Python SDK and REST API as integration surfaces;
+- methodology transparency: ranges, confidence, evidence level, methodology version, provenance;
+- the privacy-first architecture;
+- links to documentation, GitHub and the Developer Console.
+
+### 40.14 Workstream B — Public site vs. Developer Console boundary
+
+Two distinct surfaces SHALL be maintained:
+
+**Public Developer Site** (unauthenticated): product information, documentation links, installation guidance, methodology information, public technical information, GitHub links, and a Developer Console call-to-action.
+
+**Authenticated Developer Console** (existing, Sprint 5C/5D, unchanged by Sprint 7A): organizations, projects, applications, API keys, usage, compare, benchmarks, API Explorer, and other authenticated functionality.
+
+The public site SHALL NOT expose API keys, authenticated session data, private organization data, private project data, private usage data, or authenticated API operations. Public pages SHALL NOT require API credentials to load or function.
+
+Sprint 7A does NOT assume both surfaces must share the same origin. The origin/security-boundary decision is an OPEN DECISION (§40.21) to be resolved via a dedicated architectural decision record, following the existing ADR-012 precedent, before implementation begins. Producing that ADR is OUT OF SCOPE for Sprint 7A's PRD/FRD.
+
+### 40.15 Workstream B — Security requirements
+
+The public site's eventual implementation SHALL satisfy:
+
+- clear separation of authenticated vs. unauthenticated routing;
+- origin separation where the architectural decision (§40.14) determines it is appropriate;
+- CORS configuration consistent with that decision;
+- no exposure of API keys or session tokens on public pages;
+- no rendering of authenticated data on public pages;
+- preservation of the existing Developer Console security model (ADR-012: bearer key held client-side, strict CSP and related hardening) without weakening it as a side effect of adding public pages;
+- reduction of XSS blast radius between public, unauthenticated content and any origin/session context that holds a live API key.
+
+### 40.16 Workstream B — Methodology / scientific transparency
+
+The public site MAY explain that estimates are ranges where appropriate, confidence, methodology version, assumptions, provenance, measurement coverage and limitations, consistent with existing product principles (§4, §12).
+
+The public site SHALL NOT introduce:
+
+- claims of exact physical resource consumption where authoritative measurement data is not available (§1);
+- fabricated environmental factors;
+- rankings, "winner" designations, or best/worst provider claims;
+- scores or leaderboards;
+- provider/model recommendations.
+
+These restrictions mirror the existing Sprint 4/Sprint 7 non-ranking, non-scoring requirements (§17, §39.9) and apply equally to public-facing content.
+
+### 40.17 Roadmap acknowledgement
+
+The public site MAY acknowledge Sprint 8 (Browser Extension) and Sprint 9 (Mobile Apps) as future platform surfaces, consistent with §38.18. Sprint 7A SHALL NOT implement Browser Extension or mobile functionality. The Sprint 6 unified instrumentation foundation (§38) remains the canonical foundation for all current and future client surfaces (Web, SDK, CLI, Browser Extension, iOS, Android, Direct API).
+
+### 40.18 License — open decision
+
+The repository's current package licensing (`UNLICENSED`) is an OPEN DECISION and an implementation prerequisite for Workstream A, not a Sprint 7A deliverable:
+
+- Public package distribution SHALL require an explicit licensing decision before publishing.
+- Package metadata and repository license files SHALL reflect the selected license before public release.
+- This PRD does NOT select or recommend a specific license. This decision is deferred to the project owner.
+
+### 40.19 Explicit non-goals
+
+Sprint 7A does NOT include:
+
+- Browser Extension implementation
+- iOS implementation
+- Android implementation
+- new AI estimation methodology
+- new environmental coefficients
+- new providers
+- new model intelligence
+- provider/model ranking, scoring, "winner"/best-worst designations, or optimization recommendations
+- billing
+- RBAC
+- SSO
+- enterprise governance
+- new backend instrumentation endpoints
+- an alternate CLI estimation engine
+- prompt capture, response capture, source-code capture, or browser-content capture
+- redesign of the existing authenticated Developer Console
+- selection or implementation of a software license
+- implementation of the PyPI publishing workflow
+- implementation of the public site itself
+- creation of the origin/security-boundary ADR
+
+### 40.20 Acceptance criteria
+
+**CLI distribution:**
+
+- The SDK can be installed in a clean environment without the source repository present.
+- The CLI can be installed in a clean environment without the source repository present.
+- The CLI resolves its SDK dependency without local editable installs or repository files.
+- Package metadata for both SDK and CLI is complete and correct.
+- A wheel and, where appropriate, a source distribution can be built for both packages.
+- Built package contents contain no secrets or credentials.
+- A release/publishing workflow can be validated (e.g., via a dry run or staging index) before any real publish.
+- Versioning is deterministic and the SDK/CLI compatibility relationship is documented.
+- Existing CLI commands, output modes, exit codes and configuration precedence continue to work unchanged.
+- The `CLI -> SDK -> REST API` architecture remains intact, with no second HTTP client or duplicated estimation/authentication logic introduced.
+
+**Public developer site:**
+
+- Public pages load without authentication and without requiring an API key.
+- The authenticated Developer Console remains protected and unaffected.
+- The public site presents a clear CLI installation call-to-action.
+- The public site links to SDK documentation, API documentation and GitHub.
+- The public site links to the Developer Console.
+- Methodology, privacy and limitations are clearly represented, consistent with §40.16.
+- No private user, organization, project or usage information is exposed on public pages.
+- The public/authenticated security boundary is documented (ADR, produced as a follow-on task).
+
+### 40.21 Open decisions
+
+The following are explicitly unresolved by this specification and must be decided before or during implementation:
+
+1. Software license selection for the SDK and CLI packages (§40.18).
+2. SDK/CLI versioning scheme and the exact SDK-CLI compatibility constraint format (§40.5–40.7).
+3. Origin/security-boundary architecture for the public site relative to the Developer Console (§40.14), to be resolved via a dedicated ADR following the ADR-012 precedent.
+4. The specific PyPI publishing mechanism and trusted-publishing configuration (§40.9).
+5. Hosting/deployment target for the public site (not specified here; deferred to the ADR and implementation planning).
+
+### 40.22 Definition of Done
+
+This Sprint 7A specification (PRD/FRD) is complete when:
+
+1. Both workstreams (CLI Distribution Readiness, Public Developer Landing Site) have documented in-scope requirements.
+2. CLI/SDK distribution, packaging, versioning, publishing, security and privacy requirements are defined without claiming implementation exists.
+3. Public site content, navigation, security-boundary and methodology-transparency requirements are defined without claiming implementation exists.
+4. Explicit non-goals are recorded and consistent with the roadmap boundary (Sprint 8/9 untouched).
+5. Acceptance criteria are defined for both workstreams.
+6. Open decisions (license, versioning scheme, origin/security ADR, publishing mechanism, hosting) are explicitly recorded rather than silently assumed.
+7. This document and the corresponding FRD section are internally consistent and use requirement language (SHALL/MUST/SHOULD/OUT OF SCOPE/OPEN DECISION) rather than completion claims.
+
+Implementation of Sprint 7A begins only after this specification is approved.
+
+### 40.23 Deliverables
+
+This Sprint 7A milestone's deliverables are documentation only:
+
+~~~text
+docs/
+  Sprint 7A PRD section (this section)
+  Sprint 7A FRD section
+~~~
+
+No `cli/`, `sdk/`, `frontend/`, `backend/`, packaging, license, or CI/CD files are deliverables of this specification step. Those become deliverables of a subsequent implementation phase once this specification is approved.

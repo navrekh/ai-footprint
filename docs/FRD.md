@@ -1,9 +1,9 @@
 # AI FOOTPRINT
 ## Functional Requirements Document (FRD)
-### Version 0.5 — Foundation + Developer Platform + Resource Intelligence + Developer Experience + Adoption & Instrumentation + CLI
+### Version 0.6 — Foundation + Developer Platform + Resource Intelligence + Developer Experience + Adoption & Instrumentation + CLI + CLI Distribution & Public Developer Site
 
-**Status:** Approved — Sprint 7 implementation contract  
-**Purpose:** Define the functional and technical requirements for the AI Footprint backend through the Adoption & Instrumentation Foundation milestone (Sprint 6), building on the Sprint 5 Developer Experience & Productization, Sprint 4 AI Resource Intelligence and Sprint 3 Developer Platform & Usage Intelligence milestones.
+**Status:** Approved — Sprint 7A implementation contract  
+**Purpose:** Define the functional and technical requirements for the AI Footprint platform through the Sprint 7A CLI Distribution & Public Developer Site specification, building on the Sprint 7 CLI + Developer Workflow, Sprint 6 Adoption & Instrumentation Foundation, Sprint 5 Developer Experience & Productization, Sprint 4 AI Resource Intelligence and Sprint 3 Developer Platform & Usage Intelligence milestones.
 
 ## 1. System Components
 
@@ -1900,3 +1900,255 @@ docs/
 ~~~
 
 No Browser Extension or Mobile application source tree is part of Sprint 7.
+
+
+## 40. Sprint 7A — CLI Distribution & Public Developer Site
+
+### 40.1 Functional objective
+
+Define the functional and technical requirements to make the AI Footprint Python SDK and CLI installable in a clean environment without the source repository, and to define a public, unauthenticated developer site that is architecturally and operationally separate from the authenticated Developer Console.
+
+This section specifies requirements only. It does not describe an implemented system. Implementation SHALL follow approval of this FRD section and the corresponding PRD section (PRD §40).
+
+### 40.2 Architecture — CLI/SDK distribution path
+
+The required end-state distribution path:
+
+~~~text
+Clean environment
+      |
+      v
+pip install aifootprint-cli   (or equivalent package manager invocation)
+      |
+      v
+aifootprint-cli package  --(depends on, resolved from a package index)-->  aifootprint SDK package
+      |
+      v
+Existing REST API
+~~~
+
+The existing `CLI -> SDK -> REST API` architecture (§39.2) SHALL be preserved. No new transport, authentication, or estimation layer SHALL be introduced by distribution work.
+
+### 40.3 Architecture — Public site and Developer Console relationship
+
+~~~text
+Public Developer Site (unauthenticated)         Authenticated Developer Console (existing)
+      |                                                  |
+      +--> product/methodology content                   +--> Organizations/Projects/Applications
+      +--> install/documentation links                    +--> API Keys
+      +--> GitHub link                                     +--> Usage / Compare / Benchmarks
+      +--> Developer Console CTA  ------------------------>+--> API Explorer
+~~~
+
+Both surfaces SHALL continue to rely on the same underlying REST API. The public site SHALL NOT call authenticated endpoints and SHALL NOT hold or transmit an API key. Whether the two surfaces share an origin is an OPEN DECISION (§40.14).
+
+### 40.4 SDK distribution requirements
+
+- The SDK package SHALL declare all runtime dependencies with accurate version constraints in its package metadata.
+- The SDK SHALL be installable via a standard package-manager invocation (e.g., `pip install <package>`) without requiring the source repository or an editable (`-e`) install.
+- The SDK SHALL declare an explicit, deterministic version number for each release.
+- The SDK's public API surface (resource classes, exceptions, `ClientContext`/`ClientType` models) SHALL remain unchanged by distribution work; only packaging/metadata/build configuration SHALL differ.
+
+### 40.5 CLI distribution requirements
+
+- The CLI package SHALL declare its dependency on the SDK package with an explicit, resolvable version constraint, not an unpinned bare name that can only resolve inside this repository.
+- The CLI SHALL be installable via a standard package-manager invocation without requiring a local editable install of the SDK or the source repository.
+- The CLI's command surface, exit codes, output modes, configuration precedence and client-context behavior (§39.3–§39.14) SHALL remain unchanged.
+- The CLI SHALL continue to satisfy the SDK-boundary requirement (§39.13): no direct HTTP client, no independent authentication, no independent estimation logic, introduced as part of distribution work.
+
+### 40.6 Package and version compatibility
+
+- Supported Python version SHALL remain >= 3.10 unless a documented reason requires a change.
+- A compatibility constraint between CLI releases and SDK releases SHALL be defined (e.g., the CLI declares a supported SDK version range) so that an independent SDK release cannot silently break a published CLI release.
+- The exact versioning scheme (e.g., semantic versioning) and the exact compatibility-constraint syntax are an OPEN DECISION (§40.23) to be recorded during implementation planning.
+
+### 40.7 Release artifacts and validation
+
+For each of the SDK and CLI packages, the release process SHALL produce:
+
+- a wheel (`.whl`);
+- a source distribution (`.sdist`) where appropriate for the package type;
+- validated package metadata (name, version, license, dependencies, Python requirement, classifiers).
+
+Before any release is considered valid, the process SHALL verify that installing the built artifact(s) into a clean, network-isolated-from-the-repository environment succeeds and that the installed CLI's existing commands function against a reachable API.
+
+### 40.8 Publishing workflow requirements (future mechanism)
+
+Sprint 7A SHALL define, but implementation SHALL NOT occur in this milestone, requirements for:
+
+- an automated package build step;
+- an automated package/metadata validation step;
+- a publishing workflow (e.g., GitHub Actions or equivalent);
+- a release trigger tied to version tags;
+- a documented relationship between version numbers and release tags;
+- use of PyPI Trusted Publishing / OIDC in preference to long-lived API tokens, where the target index supports it.
+
+### 40.9 Distribution security requirements
+
+- Package metadata SHALL NOT contain API keys, tokens, or other credentials.
+- Built wheels and source distributions SHALL NOT contain credentials, `.env` files, or local developer configuration.
+- Any future publishing workflow's logs SHALL NOT contain secrets (e.g., publishing tokens SHALL be masked/handled via the CI provider's secret mechanism).
+- Publishing SHALL NOT introduce a new credential-persistence mechanism beyond the CLI's existing local configuration file (§39.9).
+- All CLI security requirements already defined in §39.17 remain in force and unmodified by distribution work.
+
+### 40.10 Distribution privacy requirements
+
+Distribution work SHALL NOT change the CLI's existing privacy behavior (§39.4, §38.8). Specifically, the distributed CLI SHALL continue to NOT scan local files or source repositories, inspect shell history, or automatically capture prompts, responses, source code, or browser content.
+
+### 40.11 Public developer site — content requirements
+
+The public site SHALL present, at minimum:
+
+- an explanation of AI Footprint's purpose and the AIWorkload abstraction;
+- the supported workload categories (§22–§26);
+- the available integration surfaces: CLI, Python SDK, REST API;
+- methodology-transparency content: ranges, confidence, methodology version, assumptions, provenance, measurement coverage, limitations;
+- a statement of the privacy-first architecture consistent with §30/§38.8;
+- links to Quick Start, SDK documentation, API documentation, GitHub, and the Developer Console.
+
+### 40.12 Public developer site — navigation and CTAs
+
+The public site SHALL provide direct, discoverable navigation to:
+
+- CLI installation instructions;
+- SDK documentation;
+- API documentation;
+- the Quick Start guide;
+- the GitHub repository;
+- the authenticated Developer Console (as a call-to-action; the console itself remains authenticated).
+
+### 40.13 Public site vs. Developer Console boundary — technical requirements
+
+- The public site SHALL NOT require an API key to load or operate any of its pages.
+- The public site SHALL NOT render organization, project, application, API-key, usage, compare, benchmark-run or API-Explorer data that requires authentication.
+- The public site SHALL NOT include client-side code paths capable of issuing authenticated requests to the REST API.
+- Routing SHALL clearly separate public, unauthenticated routes from the existing authenticated Developer Console routes.
+
+### 40.14 Origin/security boundary — open decision
+
+Whether the public site and the authenticated Developer Console SHALL share a single origin or SHALL be served from separate origins/subdomains is an OPEN DECISION. This decision SHALL be documented as a dedicated architectural decision record, following the precedent and rigor of ADR-012 (console authentication), before implementation begins. Producing that ADR is OUT OF SCOPE for this FRD section.
+
+The eventual decision SHALL explicitly address:
+
+- whether a same-origin deployment increases XSS blast radius against the API key held in the console's `sessionStorage` (per ADR-012's existing risk model);
+- CORS configuration required by whichever origin arrangement is chosen (§40.15);
+- Content-Security-Policy implications for the public site relative to the console's existing strict CSP requirement.
+
+### 40.15 CORS requirements
+
+Whatever origin arrangement is selected (§40.14), CORS configuration SHALL:
+
+- permit only the origins actually required for legitimate public-site and console operation;
+- avoid a wildcard (`*`) origin for any endpoint that can return authenticated or private data;
+- remain consistent with the existing API's authentication/authorization model (§27).
+
+### 40.16 Public site security requirements
+
+The public site's implementation SHALL satisfy:
+
+1. no API key required to load or use any public page;
+2. no authenticated session data rendered on any public page;
+3. no private organization/project/application/usage data reachable from a public page;
+4. clear routing separation between public and authenticated surfaces;
+5. an explicit, documented origin/CORS/CSP posture resulting from the §40.14 decision;
+6. preservation, without weakening, of the existing Developer Console security model (ADR-012);
+7. reduction of cross-surface XSS blast radius between public content and any context holding a live API key.
+
+### 40.17 Methodology / scientific transparency requirements
+
+Public-facing methodology content SHALL:
+
+- present estimates as ranges where the underlying API returns ranges, never as single-point claims of exact consumption;
+- disclose confidence, methodology version, assumptions, and measurement coverage where discussed;
+- avoid fabricated environmental factors not present in the existing methodology registry;
+- avoid rankings, "winner" designations, best/worst claims, scores, leaderboards, or provider/model recommendations, consistent with the existing non-ranking requirement (§35.7, §39.7).
+
+### 40.18 Roadmap surface acknowledgement
+
+The public site MAY reference Sprint 8 (Browser Extension) and Sprint 9 (Mobile Apps) as future platform surfaces built on the Sprint 6 instrumentation foundation (§38). Sprint 7A SHALL NOT implement either surface.
+
+### 40.19 License requirement — open decision
+
+- Public distribution of the SDK and CLI packages SHALL require an explicit software license to be selected and applied to package metadata (`license` field) and repository license files before any public release.
+- This FRD does NOT select a license. The choice is an OPEN DECISION for the project owner, to be resolved before Workstream A implementation is considered complete.
+
+### 40.20 Testing requirements
+
+#### Distribution validation (Workstream A)
+
+- clean-environment install test for the SDK (no repository present);
+- clean-environment install test for the CLI (no repository present, no editable SDK install);
+- package-metadata validation (name, version, license, dependency constraints, Python requirement);
+- built-artifact content scan confirming no secrets/credentials are packaged;
+- regression run of the existing CLI unit, SDK-boundary, and security test suites (§39.18) against the distributed package to confirm no behavioral change.
+
+#### Public site validation (Workstream B)
+
+- verification that public pages load without authentication and without an API key;
+- verification that no authenticated data or credentials are present in public-page responses or client-side bundles;
+- verification that navigation links to CLI install, SDK docs, API docs, GitHub and the Developer Console are present and correct;
+- verification that the existing Developer Console's authenticated routes and security posture (ADR-012) are unaffected.
+
+#### Regression
+
+- full backend suite;
+- full SDK suite;
+- full CLI suite;
+- full frontend suite (Developer Console);
+- Ruff, mypy, TypeScript/lint/build, Alembic validation (unchanged from Sprint 7, §39.18) — run to confirm Sprint 7A specification work introduces no code regressions, given no code is changed by this specification step itself.
+
+### 40.21 Explicit non-goals
+
+Sprint 7A does NOT implement:
+
+- Browser Extension
+- iOS
+- Android
+- new provider integrations
+- new methodology factors or estimation algorithms
+- ranking, scoring, or recommendation logic
+- billing, RBAC, SSO, or enterprise gateway
+- a new backend instrumentation endpoint
+- a second HTTP/authentication stack
+- the PyPI publishing workflow itself
+- a software license selection
+- the public site's implementation
+- the origin/security-boundary ADR
+- any change to existing CLI/SDK/backend/frontend application code, package configuration, or CI/CD workflows
+
+### 40.22 Acceptance criteria
+
+CLI distribution is acceptable when all items in §40.20 "Distribution validation" pass in a genuinely clean environment, and the existing CLI/SDK/backend/frontend regression suites remain green.
+
+The public site is acceptable when all items in §40.20 "Public site validation" pass, and the authenticated Developer Console's existing tests (§36.16) remain green and unmodified.
+
+### 40.23 Open decisions
+
+1. License selection for `sdk`/`cli` packages (§40.19).
+2. Versioning scheme and SDK/CLI compatibility-constraint syntax (§40.6).
+3. Origin/security-boundary architecture for the public site vs. the Developer Console (§40.14), to be resolved via a dedicated ADR.
+4. CORS/CSP configuration resulting from that decision (§40.15).
+5. Specific PyPI publishing/trusted-publishing configuration (§40.8).
+6. Public site hosting/deployment target (not specified here).
+
+### 40.24 Definition of Done
+
+This FRD section is complete when:
+
+1. Distribution requirements for the SDK and CLI are fully specified, including packaging, versioning, release artifacts, publishing (future), security and privacy.
+2. Public site requirements are fully specified, including content, navigation, the console boundary, security and methodology transparency.
+3. All open decisions are explicitly recorded rather than resolved by implication.
+4. No implementation claims are made; all requirements use SHALL/MUST/SHOULD/OUT OF SCOPE/OPEN DECISION language.
+5. This section is consistent with PRD §40 and with the existing Sprint 6/Sprint 7 sections it builds on.
+
+### 40.25 Repository deliverables
+
+This specification step's only deliverables are documentation changes:
+
+~~~text
+docs/
+  PRD.md — Sprint 7A section (§40)
+  FRD.md — Sprint 7A section (§40)
+~~~
+
+No changes to `cli/`, `sdk/`, `frontend/`, `backend/`, license files, or `.github/` are deliverables of this step.
