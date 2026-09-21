@@ -65,7 +65,13 @@ registrable domain).
 ## Security boundary (ADR-0012 summary — read the ADR for the full reasoning)
 
 - This site requires **no authentication and no API key** to load or
-  function, and must never be given one.
+  function, and must never be given one. Where a code sample needs to show
+  an API key variable, it uses an unmistakable placeholder
+  (`<YOUR_API_KEY>`) — never a string shaped like a real key prefix
+  (`afp_live_`/`afp_test_`), even as a placeholder, since the prefix format
+  itself is sensitive to document verbatim next to a "paste your key here"
+  example. CI's `public-site` job greps for that prefix and fails the build
+  if it ever reappears, in any form.
 - It must never read, write, or reference the Developer Console's
   `sessionStorage`/`localStorage`/cookies (structurally impossible once
   deployed to a different origin, per ADR-0012).
@@ -75,6 +81,31 @@ registrable domain).
 - Links to the Developer Console are ordinary cross-origin navigation
   (`<a href>`) — no token, key, or session state is or should ever be
   passed through them.
+
+### Content-Security-Policy
+
+`index.html` ships a `<meta http-equiv="Content-Security-Policy">` tag,
+default-deny with only the one resource this page actually loads
+(`styles.css`, same-origin) allowed back in:
+
+```
+default-src 'none'; style-src 'self'; script-src 'none'; object-src 'none';
+base-uri 'none'; form-action 'none'; upgrade-insecure-requests
+```
+
+No third-party script or style origin is allowed. Ordinary `<a href>`
+navigation to other origins (GitHub, the Developer Console, API docs) is
+unaffected — CSP does not govern link navigation, only resource loading.
+
+**One directive can't be set this way**: `frame-ancestors` (clickjacking
+protection — who may embed this page in an `<iframe>`) is explicitly
+excluded from the `<meta>` CSP delivery mechanism by the CSP spec; browsers
+silently ignore it there. Once this site has real hosting, the deployment
+should also send a `Content-Security-Policy` **HTTP response header**
+(not just the meta tag) including `frame-ancestors 'none'` — most static
+hosts/CDNs support adding custom response headers. This is a hosting
+configuration step, not something a static HTML file can express, so it is
+not done in this repository.
 
 ## Content boundaries (PRD §40.16, enforced by review, not tooling)
 

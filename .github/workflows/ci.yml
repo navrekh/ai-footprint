@@ -95,8 +95,17 @@ jobs:
       - name: Reject secret-shaped strings (API keys must never appear here)
         run: |
           set -euo pipefail
-          if grep -rEn "afp_(live|test)_[A-Za-z0-9]+" frontend/public-site; then
-            echo "::error::frontend/public-site contains what looks like a live AI Footprint API key."
+          # Match the afp_live_/afp_test_ prefix on its own, not just when
+          # followed by alnum characters - a placeholder like "afp_live_..."
+          # or "afp_live_<REDACTED>" is exactly as unacceptable as a real
+          # key, since it still documents the real, live key-prefix format.
+          #
+          # Scoped to the files actually served to the public (index.html,
+          # styles.css), not README.md - the README is repository-only
+          # documentation that legitimately names the prefix format when
+          # explaining this very check, and is never shipped to a visitor.
+          if grep -En "afp_(live|test)_" frontend/public-site/index.html frontend/public-site/styles.css; then
+            echo "::error::A served public-site file contains an AI Footprint API-key prefix (real or placeholder). Use a clearly non-key placeholder such as <YOUR_API_KEY> instead."
             exit 1
           fi
 
