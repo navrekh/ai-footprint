@@ -11,11 +11,19 @@ already computes. The backend is always the source of truth.
 
 ## Install
 
+Not yet published to PyPI — publishing is implemented (wheel/sdist build,
+clean-environment install verified, [trusted-publishing workflow](../docs/RELEASING.md)
+in place) but no release has been tagged yet. Once published:
+
 ```bash
 pip install aifootprint
 ```
 
-(Or, from a local checkout of this repository: `pip install -e ./sdk`.)
+Until then, install from a local checkout of this repository:
+
+```bash
+pip install -e ./sdk
+```
 
 ## Configure your API key
 
@@ -25,7 +33,7 @@ environment variable rather than hardcoding it:
 
 ```bash
 export AIFOOTPRINT_API_KEY="afp_..."
-export AIFOOTPRINT_BASE_URL="https://your-ai-footprint-instance.example.com"
+export AIFOOTPRINT_BASE_URL="https://api.aifootprint.tech"
 ```
 
 **Never commit an API key to source control.** The SDK never logs,
@@ -37,8 +45,9 @@ Configuration precedence (for both the API key and the base URL):
 1. an explicit constructor argument (`AIClient(api_key=..., base_url=...)`)
 2. the environment variable (`AIFOOTPRINT_API_KEY` / `AIFOOTPRINT_BASE_URL`)
 3. a documented default — `base_url` only, `http://localhost:8000` (a
-   local-development convenience; there is no hosted AI Footprint
-   instance, so real usage should always set this explicitly)
+   local-development convenience; the production API origin is
+   `https://api.aifootprint.tech`, and real usage should always set this
+   explicitly rather than rely on the localhost default)
 
 ## Create a client
 
