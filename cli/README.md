@@ -12,17 +12,23 @@ aifootprint CLI -> Python SDK (aifootprint) -> AI Footprint REST API
 
 ## Install
 
-From a clone of this repository (the CLI is not yet published to
-PyPI):
+Not yet published to PyPI — publishing is implemented (wheel/sdist build,
+clean-environment install verified, [trusted-publishing workflow](../docs/RELEASING.md)
+in place) but no release has been tagged yet. Once published, a plain
+`pip install aifootprint-cli` will pull in a compatible `aifootprint` SDK
+automatically (see `docs/RELEASING.md`'s versioning policy) — no separate
+SDK install step, no editable install, no repository checkout required.
+
+Until then, install from a local checkout of this repository:
 
 ```bash
 cd sdk && pip install -e .
 cd ../cli && pip install -e .
 ```
 
-Both installs are needed: the CLI depends on the SDK, and in this
-monorepo that dependency is resolved via an editable install rather
-than a published package version.
+Both installs are needed for local development: the CLI depends on the
+SDK, and in this monorepo (pre-publish) that dependency is resolved via an
+editable install rather than a published package version.
 
 Requires Python 3.10+.
 

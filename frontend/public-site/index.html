@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Footprint — Measure AI's Resource Footprint From Your Developer Workflow</title>
+    <meta
+      name="description"
+      content="AI Footprint estimates the resource impact (energy, water, carbon) of AI workloads as ranges with confidence, evidence level and methodology version — from your CLI, SDK and REST API."
+    />
+    <!--
+      Deployment configuration (ADR-0012): this site is a separate,
+      unauthenticated origin from the Developer Console. The two
+      placeholder URLs below (marked TODO) are not real hostnames —
+      no production hostname has been selected yet (PRD §40.21 item 5).
+      Replace them at deploy time; do not point them at this site's
+      own origin.
+    -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap">
+        <span class="logo">AI Footprint</span>
+        <nav>
+          <a href="#cli">CLI</a>
+          <a href="#sdk">SDK</a>
+          <a href="#methodology">Methodology</a>
+          <a href="#roadmap">Roadmap</a>
+          <a href="https://github.com/navrekh/ai-footprint">GitHub</a>
+          <!-- TODO(deploy): replace with the real Developer Console origin (ADR-0012 — separate origin, hostname not yet selected). -->
+          <a class="cta" href="https://console.example.com" rel="noopener">Developer Console</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap">
+          <h1>Measure AI's Resource Footprint From Your Developer Workflow</h1>
+          <p class="lede">
+            AI Footprint is a provider-neutral platform that estimates the physical
+            resource impact — energy, water, carbon — of AI workloads: conversational,
+            image, video, audio, coding/agentic, RAG and embeddings. Every estimate is a
+            range with confidence, evidence level and methodology version — never a
+            fabricated exact number.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#cli">Install the CLI</a>
+            <a class="button" href="#sdk">Install the SDK</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="what">
+        <div class="wrap">
+          <h2>What AI Footprint does</h2>
+          <p>
+            AI usage spans conversational AI, image generation, video generation, audio,
+            coding assistants, code review, AI agents, RAG and embeddings. Users
+            generally see the output of AI but not the infrastructure and resource
+            implications behind producing it. AI Footprint exposes estimated water
+            consumption, energy consumption, carbon emissions and compute/resource
+            intensity for a workload, built around an <strong>AIWorkload</strong>
+            abstraction: an organization contains projects, which contain applications,
+            which submit AI workloads that produce estimates.
+          </p>
+        </div>
+      </section>
+
+      <section id="why" class="alt">
+        <div class="wrap">
+          <h2>Why developers need AI resource intelligence</h2>
+          <p>
+            The resource cost of an AI call is invisible from the API response alone.
+            As AI usage scales inside a product, that invisible cost scales with it.
+            AI Footprint gives developers and organizations a way to measure it
+            directly from the same workflow they already use to call AI providers —
+            without requiring them to understand data-center infrastructure, and
+            without pretending to know more than the available evidence supports.
+          </p>
+        </div>
+      </section>
+
+      <section id="cli">
+        <div class="wrap">
+          <h2>CLI</h2>
+          <p>
+            A thin command-line client — <code>event</code>, <code>estimate</code>,
+            <code>usage</code>, <code>compare</code>, <code>benchmarks</code> — built on
+            the Python SDK, with no estimation logic of its own. No TTY, no browser, no
+            interactive confirmation required, which makes it safe to run in CI/CD.
+          </p>
+          <pre><code># once published (see the SDK note below for current status)
+pip install aifootprint-cli
+
+export AIFOOTPRINT_API_KEY="afp_live_..."
+export AIFOOTPRINT_BASE_URL="https://your-ai-footprint-instance.example.com"
+
+aifootprint estimate \
+  --provider openai --model model-id \
+  --modality text --activity-type text_generation \
+  --input-tokens 2000 --output-tokens 1000</code></pre>
+          <p>
+            <a href="https://github.com/navrekh/ai-footprint/blob/main/cli/README.md">Full CLI documentation on GitHub →</a>
+          </p>
+        </div>
+      </section>
+
+      <section id="sdk" class="alt">
+        <div class="wrap">
+          <h2>Python SDK</h2>
+          <p>
+            A thin, typed REST client (<code>httpx</code> + <code>pydantic</code>,
+            sync-only) — it sends requests and parses responses, and never estimates,
+            aggregates or ranks anything the backend hasn't already computed.
+          </p>
+          <pre><code># once published (both packages are currently pre-release —
+# see the repository's docs/RELEASING.md for exact status)
+pip install aifootprint</code></pre>
+          <pre><code>from aifootprint import AIClient
+
+client = AIClient()  # reads AIFOOTPRINT_API_KEY / AIFOOTPRINT_BASE_URL
+
+estimate = client.estimates.create(
+    provider="openai", model="model-id",
+    modality="text", activity_type="text_generation",
+    input_tokens=2000, output_tokens=1000,
+)
+print(estimate.energy.min, estimate.energy.max, estimate.confidence)</code></pre>
+          <p>
+            <a href="https://github.com/navrekh/ai-footprint/blob/main/sdk/README.md">Full SDK documentation on GitHub →</a>
+          </p>
+        </div>
+      </section>
+
+      <section id="architecture">
+        <div class="wrap">
+          <h2>CLI → SDK → API</h2>
+          <p>
+            There is exactly one HTTP/authentication boundary in this stack. The CLI
+            calls the SDK; the SDK calls the REST API. Neither the CLI nor the SDK
+            duplicates estimation or authentication logic — the backend is always the
+            source of truth for methodology and calculation.
+          </p>
+          <pre class="diagram"><code>aifootprint CLI  -&gt;  Python SDK (aifootprint)  -&gt;  AI Footprint REST API</code></pre>
+        </div>
+      </section>
+
+      <section id="workloads" class="alt">
+        <div class="wrap">
+          <h2>Supported workload categories</h2>
+          <ul class="pill-list">
+            <li>Conversational (text)</li>
+            <li>Image generation</li>
+            <li>Video generation</li>
+            <li>Audio</li>
+            <li>Coding / agentic</li>
+            <li>RAG</li>
+            <li>Embeddings</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="methodology">
+        <div class="wrap">
+          <h2>Ranges, confidence and provenance</h2>
+          <p>
+            AI Footprint does not claim to measure the exact physical resource
+            consumption of an individual request unless authoritative measurement data
+            is available. Every estimate is presented as a <strong>range</strong>, with
+            an explicit <strong>confidence</strong> level, <strong>evidence
+            level</strong>, <strong>methodology version</strong>, stated assumptions and
+            source provenance — never averaged into a single number, and never rounded
+            up to imply completeness when data is partial.
+          </p>
+          <p>
+            AI Footprint does not rank, score, or declare a "winner," "greenest," or
+            "best/worst" provider or model, and does not make unsupported environmental
+            claims. Comparisons (<code>compare</code>, <code>benchmarks</code>) return
+            each candidate's independent result in the order requested — nothing more.
+          </p>
+        </div>
+      </section>
+
+      <section id="privacy" class="alt">
+        <div class="wrap">
+          <h2>Privacy-first by design</h2>
+          <p>
+            The CLI and SDK operate entirely on workload <em>metadata</em>. They never
+            require, and never automatically collect, prompt text, model response text,
+            source code, private files, browser data, cookies, or third-party provider
+            credentials. An API key is sent only as an
+            <code>Authorization: Bearer</code> header — never logged, never printed,
+            never placed in a URL.
+          </p>
+        </div>
+      </section>
+
+      <section id="roadmap">
+        <div class="wrap">
+          <h2>Roadmap</h2>
+          <p>
+            <strong>Available today:</strong> the CLI, the Python SDK and the REST API.
+          </p>
+          <p>
+            <strong>Planned, not yet implemented:</strong> direct AI-provider
+            integrations (e.g. OpenAI, Anthropic, cloud AI services), OpenTelemetry
+            GenAI telemetry ingestion, cloud-platform integrations, application
+            integrations, a Browser Extension, and mobile (iOS/Android) observation.
+            These are architected around the same <strong>AIWorkload</strong> model the
+            CLI and SDK already use, so they will feed the same estimation engine and
+            the same range/confidence/provenance semantics described above — they are
+            not available yet, and this site will not claim otherwise.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <p>
+          AI Footprint is a provider-neutral platform for estimating the resource
+          impact of AI workloads. Estimates are ranges with confidence and provenance,
+          not guarantees of exact physical consumption.
+        </p>
+        <nav>
+          <a href="https://github.com/navrekh/ai-footprint">GitHub</a>
+          <a href="https://github.com/navrekh/ai-footprint/blob/main/sdk/README.md">SDK docs</a>
+          <a href="https://github.com/navrekh/ai-footprint/blob/main/cli/README.md">CLI docs</a>
+          <!-- TODO(deploy): replace with the real backend origin's /docs (Swagger UI). -->
+          <a href="https://api.example.com/docs" rel="noopener">API docs</a>
+          <!-- TODO(deploy): replace with the real Developer Console origin (ADR-0012). -->
+          <a href="https://console.example.com" rel="noopener">Developer Console</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -4,7 +4,8 @@ dynamic = ["version"]
 description = "Command-line client for the AI Footprint API"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "UNLICENSED" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "AI Footprint" }]
 keywords = ["ai-footprint", "sustainability", "cli", "developer-tools"]
 classifiers = [
@@ -25,8 +26,14 @@ classifiers = [
 # defines) and is a pure consumer of the existing `aifootprint` SDK,
 # which remains the sole HTTP/authentication boundary (see
 # aifootprint_cli/cli.py module docstring).
+#
+# Compatible-release constraint (see docs/RELEASING.md "Versioning
+# policy"): the CLI and SDK version independently, but the CLI pins to
+# the SDK's current minor line so a future SDK 0.2.0 (or 1.0.0) cannot
+# be pulled in silently by `pip install -U` without the CLI also being
+# updated to declare support for it.
 dependencies = [
-    "aifootprint",
+    "aifootprint>=0.1.0,<0.2.0",
 ]
 
 [project.optional-dependencies]
@@ -41,7 +48,7 @@ dev = [
 aifootprint = "aifootprint_cli.cli:run"
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

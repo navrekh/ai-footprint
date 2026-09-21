@@ -11,11 +11,19 @@ already computes. The backend is always the source of truth.
 
 ## Install
 
+Not yet published to PyPI — publishing is implemented (wheel/sdist build,
+clean-environment install verified, [trusted-publishing workflow](../docs/RELEASING.md)
+in place) but no release has been tagged yet. Once published:
+
 ```bash
 pip install aifootprint
 ```
 
-(Or, from a local checkout of this repository: `pip install -e ./sdk`.)
+Until then, install from a local checkout of this repository:
+
+```bash
+pip install -e ./sdk
+```
 
 ## Configure your API key
 
