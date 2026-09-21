@@ -287,7 +287,7 @@ host itself).
   must not be granted access to anything resembling a credential (there is
   none to grant, by design — this is a defense-in-depth statement, not a
   mitigation for a risk that should exist).
-- The public site's CSP is independent of the console's CSP (ADR-012). Nether
+- The public site's CSP is independent of the console's CSP (ADR-012). Neither
   site's CSP should be loosened to accommodate the other; they are unrelated
   configurations belonging to unrelated origins.
 

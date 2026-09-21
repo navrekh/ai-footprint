@@ -90,8 +90,12 @@ default-deny with only the one resource this page actually loads
 
 ```
 default-src 'none'; style-src 'self'; script-src 'none'; object-src 'none';
-base-uri 'none'; form-action 'none'; upgrade-insecure-requests
+base-uri 'none'; form-action 'none'
 ```
+
+(`upgrade-insecure-requests` is deliberately not included here: it belongs
+to production hosting/security headers, not this static local-preview CSP —
+the documented local preview below serves over plain `http://localhost`.)
 
 No third-party script or style origin is allowed. Ordinary `<a href>`
 navigation to other origins (GitHub, the Developer Console, API docs) is
