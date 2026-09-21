@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed — owner review required
+Accepted. The separate-origin decision below was owner-approved, and the
+concrete hostnames were resolved on 2026-09-21 (see "Resolved Hostnames").
 
 ## Context
 
@@ -133,16 +134,46 @@ Public Developer Site                Authenticated Developer Console
 ## Decision
 
 **Option B — separate origin.** The public developer site is deployed on an
-origin distinct from the authenticated Developer Console's origin. The exact
-hostnames (subdomains of one registered domain, or two distinct domains) are
-a deployment-configuration decision, not an architectural one, and are left
-open here per instruction — this ADR fixes only that they are **not the same
-origin**, and that no code path may assume otherwise.
+origin distinct from the authenticated Developer Console's origin. This ADR
+fixes that they are **not the same origin**, and that no code path may
+assume otherwise. The exact hostnames were, at the time this decision was
+first written, left to a later deployment-configuration step — they have
+since been resolved by the owner; see "Resolved Hostnames" immediately
+below.
 
 This directly satisfies PRD §40.14 ("Sprint 7A does not assume both surfaces
 must share the same origin") and §40.15's requirement that CORS/origin
 separation preserve ADR-012's existing console security model "without
 weakening it as a side effect of adding public pages."
+
+## Resolved Hostnames
+
+Owner-approved, 2026-09-21, after the production domain `aifootprint.tech`
+was purchased. This resolves PRD §40.21 item 5 ("hosting/deployment target
+... deferred to the ADR and implementation planning") for hostnames
+specifically; the surfaces this ADR governs are the first two rows.
+
+| Surface | Hostname | Status |
+|---|---|---|
+| Public Developer Site | `https://aifootprint.tech` | resolved (this ADR) |
+| Authenticated Developer Console | `https://app.aifootprint.tech` | resolved (this ADR) |
+| Developer API | `https://api.aifootprint.tech` | resolved (this ADR) |
+| Documentation | `https://docs.aifootprint.tech` | resolved as a future subdomain; not deployed — no separate docs site exists in this repository, and none is created by this decision |
+
+All four share the registered domain `aifootprint.tech` as distinct
+subdomains (the public site sits at the apex/root), which satisfies this
+ADR's separate-origin requirement: `aifootprint.tech`, `app.aifootprint.tech`
+and `api.aifootprint.tech` are three distinct browser origins under the
+same-origin policy (scheme + host + port), even though they share a
+registrable domain. Nothing in this ADR required unrelated registered
+domains — only that the console's origin differ from the public site's.
+
+**This is a hostname decision, not an infrastructure decision.** DNS
+records, TLS certificates, CDN/hosting configuration, load balancer
+routing, and any other production-infrastructure provisioning for these
+hostnames are a separate deployment step, not performed by this ADR and not
+performed as part of resolving it. Purchasing the domain does not imply any
+of that provisioning exists yet.
 
 ## Architecture
 
@@ -151,11 +182,11 @@ Developer's Browser (public site)          Developer's Browser (console)
         |                                            |
         v                                            v
   Public Developer Site                    Developer Console
-  (separate origin; static                 (existing, ADR-012;
-   content + optional public,               Bearer <API_KEY>, held
-   unauthenticated API calls only,          client-side per ADR-012's
-   e.g. the existing unauthenticated        storage rules — unchanged)
-   POST /v1/organizations bootstrap,
+  (https://aifootprint.tech; static        (https://app.aifootprint.tech;
+   content + optional public,               existing, ADR-012; Bearer
+   unauthenticated API calls only,          <API_KEY>, held client-side
+   e.g. the existing unauthenticated        per ADR-012's storage rules —
+   POST /v1/organizations bootstrap,        unchanged)
    if/when the site chooses to offer
    an inline "get started" flow —
    not required for v1 and not
@@ -165,8 +196,9 @@ Developer's Browser (public site)          Developer's Browser (console)
         |  ever required to render                   |
         |  or use the public site)                    |
         v                                            v
-               AI Footprint REST API  (unchanged: API-key auth,
-                    tenant isolation, environment-driven CORS allowlist)
+               AI Footprint REST API  (https://api.aifootprint.tech;
+                    unchanged: API-key auth, tenant isolation,
+                    environment-driven CORS allowlist)
                               |
                               v
                          PostgreSQL
@@ -312,8 +344,14 @@ host itself).
 ## Deferred Work
 
 Explicitly deferred, not decided, and not implied by this ADR:
-- The concrete hostnames/domains for either origin — a deployment-time
-  decision (PRD §40.21 item 5, "hosting/deployment target," remains open).
+- ~~The concrete hostnames/domains for either origin~~ — resolved; see
+  "Resolved Hostnames" above. What remains deferred is the actual
+  provisioning behind those hostnames.
+- DNS records, TLS certificates, CDN/hosting configuration, load-balancer
+  routing, and any other production-infrastructure provisioning for
+  `aifootprint.tech`, `app.aifootprint.tech`, `api.aifootprint.tech` and
+  `docs.aifootprint.tech` — a deployment-time task, not performed by this
+  ADR or by resolving the hostname decision.
 - Implementation of the public site's CSP headers, CORS allowlist entry (if
   any), and hosting configuration — this ADR specifies the required policy
   shape, not the implementation, consistent with how ADR-012 treated CORS
@@ -331,6 +369,9 @@ model, storage rules, CORS entry, or CSP requirement.
 affected by an origin decision that only concerns browser-based surfaces.
 
 **Backend API:** no change required by this ADR alone. `ALLOWED_ORIGINS`
-gains, at most, one new entry if and only if the public site later calls an
-unauthenticated endpoint — a configuration change, not a code change to
-authorization logic.
+will need `https://app.aifootprint.tech` added once the console is actually
+deployed there (unchanged mechanism — an environment-variable value, per
+ADR-012 — not a code change to authorization logic), and gains, at most,
+one further entry for `https://aifootprint.tech` if and only if the public
+site later calls an unauthenticated endpoint. Neither addition is made by
+this change; both are deployment-time configuration.

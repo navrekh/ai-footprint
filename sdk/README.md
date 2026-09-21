@@ -33,7 +33,7 @@ environment variable rather than hardcoding it:
 
 ```bash
 export AIFOOTPRINT_API_KEY="afp_..."
-export AIFOOTPRINT_BASE_URL="https://your-ai-footprint-instance.example.com"
+export AIFOOTPRINT_BASE_URL="https://api.aifootprint.tech"
 ```
 
 **Never commit an API key to source control.** The SDK never logs,
@@ -45,8 +45,9 @@ Configuration precedence (for both the API key and the base URL):
 1. an explicit constructor argument (`AIClient(api_key=..., base_url=...)`)
 2. the environment variable (`AIFOOTPRINT_API_KEY` / `AIFOOTPRINT_BASE_URL`)
 3. a documented default — `base_url` only, `http://localhost:8000` (a
-   local-development convenience; there is no hosted AI Footprint
-   instance, so real usage should always set this explicitly)
+   local-development convenience; the production API origin is
+   `https://api.aifootprint.tech`, and real usage should always set this
+   explicitly rather than rely on the localhost default)
 
 ## Create a client
 

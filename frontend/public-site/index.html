@@ -9,13 +9,27 @@
       content="AI Footprint estimates the resource impact (energy, water, carbon) of AI workloads as ranges with confidence, evidence level and methodology version — from your CLI, SDK and REST API."
     />
     <!--
-      Deployment configuration (ADR-0012): this site is a separate,
-      unauthenticated origin from the Developer Console. The two
-      placeholder URLs below (marked TODO) are not real hostnames —
-      no production hostname has been selected yet (PRD §40.21 item 5).
-      Replace them at deploy time; do not point them at this site's
-      own origin.
+      Origin/security boundary (ADR-0012): this site is a separate,
+      unauthenticated origin (https://aifootprint.tech) from the
+      Developer Console (https://app.aifootprint.tech). These are the
+      owner-approved production hostnames; DNS, TLS, CDN and other
+      infrastructure provisioning for them is a separate deployment
+      step not performed by this file.
     -->
+    <link rel="canonical" href="https://aifootprint.tech/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="AI Footprint — Measure AI's Resource Footprint From Your Developer Workflow" />
+    <meta
+      property="og:description"
+      content="AI Footprint estimates the resource impact (energy, water, carbon) of AI workloads as ranges with confidence, evidence level and methodology version — from your CLI, SDK and REST API."
+    />
+    <meta property="og:url" content="https://aifootprint.tech/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="AI Footprint — Measure AI's Resource Footprint From Your Developer Workflow" />
+    <meta
+      name="twitter:description"
+      content="AI Footprint estimates the resource impact (energy, water, carbon) of AI workloads as ranges with confidence, evidence level and methodology version — from your CLI, SDK and REST API."
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -28,8 +42,7 @@
           <a href="#methodology">Methodology</a>
           <a href="#roadmap">Roadmap</a>
           <a href="https://github.com/navrekh/ai-footprint">GitHub</a>
-          <!-- TODO(deploy): replace with the real Developer Console origin (ADR-0012 — separate origin, hostname not yet selected). -->
-          <a class="cta" href="https://console.example.com" rel="noopener">Developer Console</a>
+          <a class="cta" href="https://app.aifootprint.tech" rel="noopener">Developer Console</a>
         </nav>
       </div>
     </header>
@@ -95,7 +108,7 @@
 pip install aifootprint-cli
 
 export AIFOOTPRINT_API_KEY="afp_live_..."
-export AIFOOTPRINT_BASE_URL="https://your-ai-footprint-instance.example.com"
+export AIFOOTPRINT_BASE_URL="https://api.aifootprint.tech"
 
 aifootprint estimate \
   --provider openai --model model-id \
@@ -228,10 +241,8 @@ print(estimate.energy.min, estimate.energy.max, estimate.confidence)</code></pre
           <a href="https://github.com/navrekh/ai-footprint">GitHub</a>
           <a href="https://github.com/navrekh/ai-footprint/blob/main/sdk/README.md">SDK docs</a>
           <a href="https://github.com/navrekh/ai-footprint/blob/main/cli/README.md">CLI docs</a>
-          <!-- TODO(deploy): replace with the real backend origin's /docs (Swagger UI). -->
-          <a href="https://api.example.com/docs" rel="noopener">API docs</a>
-          <!-- TODO(deploy): replace with the real Developer Console origin (ADR-0012). -->
-          <a href="https://console.example.com" rel="noopener">Developer Console</a>
+          <a href="https://api.aifootprint.tech/docs" rel="noopener">API docs</a>
+          <a href="https://app.aifootprint.tech" rel="noopener">Developer Console</a>
         </nav>
       </div>
     </footer>

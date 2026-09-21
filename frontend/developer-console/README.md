@@ -28,9 +28,13 @@ npm run dev
 | `npm test`          | Vitest (unit/component tests)  |
 
 `VITE_API_BASE_URL` is the API origin without the `/v1` suffix and without a
-trailing slash (for example `https://api.example.com`). The production URL is
-never hardcoded. The API must list the console origin in its CORS
-`ALLOWED_ORIGINS` (ADR-012); the console sends no cookies.
+trailing slash (production: `https://api.aifootprint.tech`). The production
+URL is never hardcoded — it's set via `.env`/deployment configuration, same
+as the localhost default in `.env.example`. Once deployed, the console
+itself is served from `https://app.aifootprint.tech` (ADR-0012: a separate
+origin from the public developer site at `https://aifootprint.tech`). The
+API must list the console origin in its CORS `ALLOWED_ORIGINS` (ADR-012);
+the console sends no cookies.
 
 ## Authentication (ADR-012)
 

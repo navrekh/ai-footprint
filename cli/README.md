@@ -40,7 +40,7 @@ first API key, then export it:
 
 ```bash
 export AIFOOTPRINT_API_KEY="afp_live_..."
-export AIFOOTPRINT_BASE_URL="http://localhost:8000"   # or your deployment
+export AIFOOTPRINT_BASE_URL="http://localhost:8000"   # or https://api.aifootprint.tech in production
 ```
 
 ### Configuration precedence
@@ -205,7 +205,7 @@ A typical CI step:
 
 ```bash
 AIFOOTPRINT_API_KEY="$SECRET" \
-AIFOOTPRINT_BASE_URL="https://api.example.com" \
+AIFOOTPRINT_BASE_URL="https://api.aifootprint.tech" \
 aifootprint event --provider openai --model model-id \
   --modality text --activity-type text_generation \
   --input-tokens 2000 --output-tokens 1000 \

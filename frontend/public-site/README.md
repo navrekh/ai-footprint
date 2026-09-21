@@ -39,21 +39,28 @@ python3 -m http.server 8080
 # open http://localhost:8080
 ```
 
-## Required deployment configuration (not filled in here)
+## Production hostnames (resolved)
 
-Two links in `index.html` are placeholders, marked `TODO(deploy)` in the
-markup, because no production hostname has been selected yet
-(PRD §40.21 item 5; ADR-0012 fixes only that these are **separate origins**,
-not what those origins are named):
+Owner-approved, 2026-09-21 — see ADR-0012's "Resolved Hostnames" section:
 
-| Placeholder | Where | Replace with |
-|---|---|---|
-| `https://console.example.com` | nav CTA + footer | the real Developer Console origin |
-| `https://api.example.com/docs` | footer | the real backend origin's `/docs` (FastAPI/Swagger UI) |
+| Surface | Hostname |
+|---|---|
+| This site | `https://aifootprint.tech` |
+| Developer Console | `https://app.aifootprint.tech` |
+| Developer API | `https://api.aifootprint.tech` |
+| Documentation | `https://docs.aifootprint.tech` (future; no separate docs deployment exists yet) |
 
-Do not point either placeholder at this site's own origin — see
-ADR-0012's "Trust Boundary" section for why the two surfaces must not be
-same-origin.
+`index.html` already links to the Console and API origins above. **This is
+a hostname decision, not infrastructure**: DNS, TLS, CDN and hosting
+configuration for these domains are a separate deployment step, not
+performed by this repository. Until that provisioning exists, these are
+correct target URLs that do not yet resolve to a live deployment.
+
+Do not point this site's own links at its own origin — see ADR-0012's
+"Trust Boundary" section for why the site and the console must not be
+same-origin (they aren't: `aifootprint.tech` and `app.aifootprint.tech` are
+distinct origins under the same-origin policy even though they share a
+registrable domain).
 
 ## Security boundary (ADR-0012 summary — read the ADR for the full reasoning)
 
